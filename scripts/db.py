@@ -1,0 +1,173 @@
+"""SQLite schema and connection helper."""
+from __future__ import annotations
+
+import sqlite3
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+DB_PATH = ROOT / "data" / "mlb.db"
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS teams (
+    team_id        INTEGER PRIMARY KEY,
+    name           TEXT NOT NULL,
+    name_ja        TEXT,
+    abbreviation   TEXT,
+    league_id      INTEGER,
+    league_name_ja TEXT,
+    division_id    INTEGER,
+    division_name  TEXT,
+    division_name_ja TEXT
+);
+
+CREATE TABLE IF NOT EXISTS standings (
+    team_id        INTEGER PRIMARY KEY,
+    season         INTEGER,
+    wins           INTEGER,
+    losses         INTEGER,
+    pct            TEXT,
+    games_back     TEXT,
+    division_rank  INTEGER,
+    league_rank    INTEGER,
+    streak         TEXT,
+    last_ten       TEXT,
+    run_diff       INTEGER,
+    updated_at     TEXT,
+    FOREIGN KEY(team_id) REFERENCES teams(team_id)
+);
+
+CREATE TABLE IF NOT EXISTS games (
+    game_pk            INTEGER PRIMARY KEY,
+    game_date          TEXT,
+    game_datetime      TEXT,
+    status             TEXT,
+    detailed_state     TEXT,
+    away_team_id       INTEGER,
+    away_score         INTEGER,
+    home_team_id       INTEGER,
+    home_score         INTEGER,
+    venue              TEXT,
+    series_description TEXT,
+    away_pitcher       TEXT,
+    home_pitcher       TEXT,
+    winning_pitcher    TEXT,
+    losing_pitcher     TEXT,
+    save_pitcher       TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_games_date ON games(game_date);
+CREATE INDEX IF NOT EXISTS idx_games_teams ON games(away_team_id, home_team_id);
+
+CREATE TABLE IF NOT EXISTS players (
+    player_id      INTEGER PRIMARY KEY,
+    full_name      TEXT,
+    full_name_ja   TEXT,
+    current_team_id INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS rosters (
+    team_id        INTEGER,
+    player_id      INTEGER,
+    season         INTEGER,
+    jersey_number  TEXT,
+    position_code  TEXT,
+    position_abbr  TEXT,
+    position_name  TEXT,
+    status         TEXT,
+    PRIMARY KEY(team_id, player_id, season),
+    FOREIGN KEY(team_id) REFERENCES teams(team_id),
+    FOREIGN KEY(player_id) REFERENCES players(player_id)
+);
+
+CREATE TABLE IF NOT EXISTS leaders (
+    season         INTEGER,
+    league_id      INTEGER,   -- 103=AL, 104=NL, 0=MLB
+    category       TEXT,
+    rank           INTEGER,
+    player_id      INTEGER,
+    player_name    TEXT,
+    player_name_ja TEXT,
+    team_id        INTEGER,
+    value          TEXT,
+    PRIMARY KEY(season, league_id, category, rank)
+);
+
+CREATE TABLE IF NOT EXISTS boxscore_linescore (
+    game_pk        INTEGER PRIMARY KEY,
+    away_runs      INTEGER,
+    away_hits      INTEGER,
+    away_errors    INTEGER,
+    home_runs      INTEGER,
+    home_hits      INTEGER,
+    home_errors    INTEGER,
+    innings_json   TEXT,
+    FOREIGN KEY(game_pk) REFERENCES games(game_pk)
+);
+
+CREATE TABLE IF NOT EXISTS boxscore_team_stats (
+    game_pk        INTEGER,
+    side           TEXT,           -- 'away' or 'home'
+    team_id        INTEGER,
+    bat_avg        TEXT,
+    bat_obp        TEXT,
+    bat_slg        TEXT,
+    bat_ops        TEXT,
+    bat_runs       INTEGER,
+    bat_hits       INTEGER,
+    bat_hr         INTEGER,
+    bat_rbi        INTEGER,
+    bat_bb         INTEGER,
+    bat_so         INTEGER,
+    pit_era        TEXT,
+    pit_innings    TEXT,
+    pit_strikeouts INTEGER,
+    pit_hits       INTEGER,
+    pit_runs       INTEGER,
+    pit_walks      INTEGER,
+    pit_home_runs  INTEGER,
+    PRIMARY KEY(game_pk, side),
+    FOREIGN KEY(game_pk) REFERENCES games(game_pk)
+);
+
+CREATE INDEX IF NOT EXISTS idx_leaders_lookup ON leaders(season, league_id, category);
+CREATE INDEX IF NOT EXISTS idx_rosters_team ON rosters(team_id, season);
+
+CREATE TABLE IF NOT EXISTS player_season_stats (
+    player_id      INTEGER,
+    season         INTEGER,
+    stat_group     TEXT,           -- 'hitting' or 'pitching'
+    stats_json     TEXT,
+    updated_at     TEXT,
+    PRIMARY KEY (player_id, season, stat_group),
+    FOREIGN KEY (player_id) REFERENCES players(player_id)
+);
+"""
+
+
+def connect() -> sqlite3.Connection:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
+
+def _ensure_column(conn: sqlite3.Connection, table: str, column: str, decl: str) -> None:
+    """既存テーブルに列が無ければ ALTER で追加（冪等）。"""
+    cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+    if column not in cols:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+
+
+def init_db() -> None:
+    with connect() as conn:
+        conn.executescript(SCHEMA)
+        # 旧バージョンのDBに対する後方互換マイグレーション
+        _ensure_column(conn, "players", "full_name_ja", "TEXT")
+        _ensure_column(conn, "leaders", "player_name_ja", "TEXT")
+        conn.commit()
+
+
+if __name__ == "__main__":
+    init_db()
+    print(f"Initialized DB at {DB_PATH}")

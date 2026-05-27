@@ -1,0 +1,23 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# Data (rebuilt by fetch.py on each CI run)
+data/mlb.db
+data/*.sqlite*
+
+# Generated site (rebuilt by build_site.py)
+site/
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp

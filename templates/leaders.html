@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}リーダーボード - {{ season }}年MLB{% endblock %}
+{% block content %}
+
+<h2>{{ season }}年 リーダーボード</h2>
+
+<div class="tabs">
+{% for scope in scopes %}
+  <a href="#scope-{{ scope.id }}" class="tab">{{ scope.label }}</a>
+{% endfor %}
+</div>
+
+{% for scope in scopes %}
+<section id="scope-{{ scope.id }}" class="leader-scope">
+  <h3>{{ scope.label }}</h3>
+
+  <h4>打撃</h4>
+  <div class="leader-grid">
+  {% for cat in scope.hitting %}
+    <div class="leader-block">
+      <h5>{{ cat.label }}</h5>
+      <table>
+        <thead><tr><th>順</th><th>選手</th><th>チーム</th><th>{{ cat.unit }}</th></tr></thead>
+        <tbody>
+        {% for row in cat.rows %}
+          <tr>
+            <td>{{ row.rank }}</td>
+            <td class="team-cell">
+              {% if row.player_name_ja %}
+                <span class="player-ja">{{ row.player_name_ja }}</span>
+                <span class="player-en">{{ row.player_name }}</span>
+              {% else %}
+                {{ row.player_name }}
+              {% endif %}
+            </td>
+            <td>{{ row.team_abbr or '-' }}</td>
+            <td class="score">{{ row.value }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+  </div>
+
+  <h4>投手</h4>
+  <div class="leader-grid">
+  {% for cat in scope.pitching %}
+    <div class="leader-block">
+      <h5>{{ cat.label }}</h5>
+      <table>
+        <thead><tr><th>順</th><th>選手</th><th>チーム</th><th>{{ cat.unit }}</th></tr></thead>
+        <tbody>
+        {% for row in cat.rows %}
+          <tr>
+            <td>{{ row.rank }}</td>
+            <td class="team-cell">
+              {% if row.player_name_ja %}
+                <span class="player-ja">{{ row.player_name_ja }}</span>
+                <span class="player-en">{{ row.player_name }}</span>
+              {% else %}
+                {{ row.player_name }}
+              {% endif %}
+            </td>
+            <td>{{ row.team_abbr or '-' }}</td>
+            <td class="score">{{ row.value }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+{% endblock %}

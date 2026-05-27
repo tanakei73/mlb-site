@@ -1,0 +1,345 @@
+/* MLB データ置き場 - nf3 風シンプル表組み */
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #222;
+  background: #fafafa;
+  margin: 0;
+  padding: 0;
+}
+
+header {
+  background: #14213d;
+  color: #fff;
+  padding: 12px 20px;
+  border-bottom: 3px solid #fca311;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+header h1 a {
+  color: #fff;
+  text-decoration: none;
+}
+
+header nav {
+  margin-top: 6px;
+}
+
+header nav a {
+  color: #fca311;
+  margin-right: 14px;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+header nav a:hover {
+  text-decoration: underline;
+}
+
+header .meta {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #ccc;
+}
+
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+section {
+  margin-bottom: 32px;
+}
+
+h2 {
+  font-size: 16px;
+  border-left: 4px solid #fca311;
+  padding-left: 8px;
+  margin: 24px 0 12px;
+}
+
+h3 {
+  font-size: 14px;
+  margin: 16px 0 8px;
+  color: #14213d;
+}
+
+h4 {
+  font-size: 13px;
+  margin: 8px 0 4px;
+  color: #14213d;
+}
+
+/* ------ Tables ------ */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  background: #fff;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+table th, table td {
+  border: 1px solid #ddd;
+  padding: 4px 8px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+table th {
+  background: #f0f0f0;
+  font-weight: 600;
+  color: #333;
+}
+
+table tbody tr:nth-child(even) {
+  background: #f9f9f9;
+}
+
+table tbody tr:hover {
+  background: #fff3d6;
+}
+
+td.team-cell {
+  text-align: left;
+  font-weight: 600;
+}
+
+td.team-cell.winner {
+  color: #c1121f;
+}
+
+td.score {
+  font-weight: 700;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+
+td.venue {
+  text-align: left;
+  font-size: 11px;
+  color: #666;
+}
+
+.streak-win { color: #2a9d8f; font-weight: 700; }
+.streak-loss { color: #c1121f; font-weight: 700; }
+
+/* ------ Standings grid ------ */
+.standings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 16px;
+}
+
+.division {
+  background: #fff;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+/* ------ Games ------ */
+table.games.compact {
+  font-size: 11px;
+}
+
+table.games.compact th,
+table.games.compact td {
+  padding: 3px 6px;
+}
+
+/* ------ Footer ------ */
+footer {
+  border-top: 1px solid #ddd;
+  margin-top: 40px;
+  padding: 16px 20px;
+  text-align: center;
+  font-size: 11px;
+  color: #888;
+  background: #fff;
+}
+
+@media (max-width: 640px) {
+  main { padding: 10px; }
+  table { font-size: 11px; }
+  .standings-grid { grid-template-columns: 1fr; }
+}
+
+/* ------ Phase 2 additions ------ */
+.breadcrumb {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 12px;
+}
+.breadcrumb a { color: #14213d; text-decoration: none; }
+.breadcrumb a:hover { text-decoration: underline; }
+.breadcrumb span { color: #444; }
+
+.team-header h2 small {
+  font-weight: 400;
+  font-size: 12px;
+  color: #666;
+  margin-left: 6px;
+}
+.team-header .team-meta,
+.game-header .team-meta {
+  font-size: 12px;
+  color: #666;
+  margin: 4px 0 12px;
+}
+
+.score-big {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 26px;
+  font-weight: 700;
+  color: #14213d;
+  margin: 0 8px;
+}
+
+.game-header h2 a {
+  color: #14213d;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 700;
+}
+.game-header h2 a:hover { text-decoration: underline; }
+
+a.game-link, td.score a {
+  color: #14213d;
+  text-decoration: none;
+}
+td.score a:hover { text-decoration: underline; }
+
+table.linescore th, table.linescore td {
+  min-width: 28px;
+}
+table.linescore th.team-cell {
+  text-align: left;
+  background: #f0f0f0;
+}
+
+table.kv th {
+  background: #f0f0f0;
+  text-align: left;
+  width: 30%;
+}
+table.kv td {
+  text-align: left;
+}
+
+.roster-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.roster-group {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  padding: 8px;
+  border-radius: 4px;
+}
+.roster-group h4 {
+  margin: 0 0 6px;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 4px;
+}
+
+.leader-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.leader-block {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  padding: 8px 10px;
+  border-radius: 4px;
+}
+.leader-block h5 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #14213d;
+  border-bottom: 1px solid #fca311;
+  padding-bottom: 3px;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 4px;
+}
+.tabs a.tab {
+  padding: 6px 12px;
+  background: #f0f0f0;
+  border-radius: 4px 4px 0 0;
+  color: #14213d;
+  text-decoration: none;
+  font-size: 12px;
+}
+.tabs a.tab:hover {
+  background: #fca311;
+  color: #14213d;
+}
+
+.team-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.team-list li {
+  padding: 4px 0;
+  border-bottom: 1px dotted #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.team-list li a {
+  color: #14213d;
+  text-decoration: none;
+  font-weight: 600;
+}
+.team-list li a:hover { text-decoration: underline; }
+.team-list li .meta {
+  font-size: 11px;
+  color: #666;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+
+td.team-cell a {
+  color: #14213d;
+  text-decoration: none;
+}
+td.team-cell a:hover { text-decoration: underline; }
+
+.meta-note {
+  font-size: 12px;
+  color: #666;
+  margin: 0 0 16px;
+}
+
+/* 選手名: 主日本語 + 副英語 */
+.player-ja {
+  display: inline-block;
+  font-weight: 700;
+  color: #14213d;
+}
+.player-en {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  color: #888;
+  margin-top: 1px;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+}

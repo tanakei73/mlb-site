@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}{{ team.name_ja }} - {{ season }}年MLB{% endblock %}
+{% block content %}
+
+<nav class="breadcrumb">
+  <a href="{{ root }}index.html">トップ</a> ›
+  <a href="{{ root }}standings.html">順位表</a> ›
+  <span>{{ team.name_ja }}</span>
+</nav>
+
+<header class="team-header">
+  <h2>{{ team.name_ja }} <small>({{ team.name }} / {{ team.abbreviation }})</small></h2>
+  <p class="team-meta">
+    {{ team.league_name_ja }} {{ team.division_name_ja }} ／
+    {{ standing.wins }}勝 {{ standing.losses }}敗 ／ 勝率 {{ standing.pct }} ／
+    地区 {{ standing.division_rank }}位 ／ ゲーム差 {{ standing.games_back }}
+  </p>
+</header>
+
+<section>
+  <h3>直近の試合結果</h3>
+  {% if recent_games %}
+  <table class="games compact">
+    <thead>
+      <tr>
+        <th>日付</th>
+        <th>対戦</th>
+        <th>場所</th>
+        <th>結果</th>
+        <th>スコア</th>
+        <th>勝</th><th>敗</th><th>S</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for g in recent_games %}
+      <tr>
+        <td>{{ g.game_date }}</td>
+        <td class="team-cell">{{ g.opponent_name_ja }}</td>
+        <td>{{ '本拠地' if g.is_home else 'ビジター' }}</td>
+        <td class="{{ 'streak-win' if g.result == '勝' else 'streak-loss' if g.result == '負' else '' }}">{{ g.result }}</td>
+        <td class="score"><a href="{{ root }}games/{{ g.game_pk }}.html">{{ g.our_score }} - {{ g.opp_score }}</a></td>
+        <td>{{ g.winning_pitcher or '' }}</td>
+        <td>{{ g.losing_pitcher or '' }}</td>
+        <td>{{ g.save_pitcher or '' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>直近の試合結果はありません。</p>
+  {% endif %}
+</section>
+
+<section>
+  <h3>今後の日程</h3>
+  {% if upcoming_games %}
+  <table class="games compact">
+    <thead>
+      <tr><th>日付</th><th>開始(JST)</th><th>対戦</th><th>場所</th><th>先発(自)</th><th>先発(相手)</th></tr>
+    </thead>
+    <tbody>
+    {% for g in upcoming_games %}
+      <tr>
+        <td>{{ g.game_date }}</td>
+        <td>{{ g.start_jst }}</td>
+        <td class="team-cell">{{ g.opponent_name_ja }}</td>
+        <td>{{ '本拠地' if g.is_home else 'ビジター' }}</td>
+        <td>{{ g.our_pitcher or '未定' }}</td>
+        <td>{{ g.opp_pitcher or '未定' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>今後の試合予定はありません。</p>
+  {% endif %}
+</section>
+
+<section>
+  <h3>ロースター ({{ roster|length }}名)</h3>
+  <div class="roster-grid">
+  {% for group_name, players in roster_grouped %}
+    <div class="roster-group">
+      <h4>{{ group_name }} ({{ players|length }})</h4>
+      <table>
+        <thead><tr><th>#</th><th>選手名</th><th>守備</th></tr></thead>
+        <tbody>
+        {% for p in players %}
+          <tr>
+            <td>{{ p.jersey_number or '' }}</td>
+            <td class="team-cell">
+              {% if p.full_name_ja %}
+                <span class="player-ja">{{ p.full_name_ja }}</span>
+                <span class="player-en">{{ p.full_name }}</span>
+              {% else %}
+                {{ p.full_name }}
+              {% endif %}
+            </td>
+            <td>{{ p.position_abbr }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+  </div>
+</section>
+
+{% endblock %}

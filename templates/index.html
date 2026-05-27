@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}MLB データ置き場 - {{ season }}年{% endblock %}
+{% block content %}
+
+<section>
+  <h2>本日の試合 ({{ today_label }})</h2>
+  {% if today_games %}
+  <table class="games">
+    <thead>
+      <tr>
+        <th>開始 (JST)</th>
+        <th>ビジター</th>
+        <th>スコア</th>
+        <th>ホーム</th>
+        <th>状況</th>
+        <th>球場</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for g in today_games %}
+      <tr>
+        <td>{{ g.start_jst }}</td>
+        <td class="team-cell"><a href="{{ root }}teams/{{ g.away_abbr|lower }}.html">{{ g.away_name_ja }}</a></td>
+        <td class="score">
+          {% if g.away_score is not none %}
+            <a href="{{ root }}games/{{ g.game_pk }}.html">{{ g.away_score }} - {{ g.home_score }}</a>
+          {% else %}-{% endif %}
+        </td>
+        <td class="team-cell"><a href="{{ root }}teams/{{ g.home_abbr|lower }}.html">{{ g.home_name_ja }}</a></td>
+        <td>{{ g.detailed_state }}</td>
+        <td class="venue">{{ g.venue }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>本日開催予定の試合はありません。</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2>順位表</h2>
+  <div class="standings-grid">
+  {% for div in divisions %}
+    <div class="division">
+      <h3>{{ div.name_ja }}</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>順位</th><th>チーム</th><th>勝</th><th>敗</th>
+            <th>勝率</th><th>ゲーム差</th><th>直近10</th><th>連勝/敗</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for t in div.teams %}
+          <tr>
+            <td>{{ t.division_rank }}</td>
+            <td class="team-cell"><a href="{{ root }}teams/{{ t.abbreviation|lower }}.html">{{ t.name_ja }}</a></td>
+            <td>{{ t.wins }}</td>
+            <td>{{ t.losses }}</td>
+            <td>{{ t.pct }}</td>
+            <td>{{ t.games_back }}</td>
+            <td>{{ t.last_ten or '-' }}</td>
+            <td class="{{ 'streak-win' if t.streak and t.streak.startswith('W') else 'streak-loss' if t.streak and t.streak.startswith('L') else '' }}">{{ t.streak or '-' }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+  </div>
+</section>
+
+<section>
+  <h2>直近の試合結果</h2>
+  {% for date_block in recent_games %}
+    <h3>{{ date_block.label }}</h3>
+    <table class="games compact">
+      <thead>
+        <tr><th>ビジター</th><th>スコア</th><th>ホーム</th><th>勝</th><th>敗</th><th>S</th></tr>
+      </thead>
+      <tbody>
+      {% for g in date_block.games %}
+        <tr>
+          <td class="team-cell {{ 'winner' if g.away_score is not none and g.home_score is not none and g.away_score > g.home_score else '' }}">
+            <a href="{{ root }}teams/{{ g.away_abbr|lower }}.html">{{ g.away_name_ja }}</a>
+          </td>
+          <td class="score"><a href="{{ root }}games/{{ g.game_pk }}.html">{{ g.away_score }} - {{ g.home_score }}</a></td>
+          <td class="team-cell {{ 'winner' if g.home_score is not none and g.away_score is not none and g.home_score > g.away_score else '' }}">
+            <a href="{{ root }}teams/{{ g.home_abbr|lower }}.html">{{ g.home_name_ja }}</a>
+          </td>
+          <td>{{ g.winning_pitcher or '' }}</td>
+          <td>{{ g.losing_pitcher or '' }}</td>
+          <td>{{ g.save_pitcher or '' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% endfor %}
+</section>
+
+{% endblock %}

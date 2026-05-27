@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}順位表 - {{ season }}年MLB{% endblock %}
+{% block content %}
+
+<h2>{{ season }}年 順位表</h2>
+
+{% for league in leagues %}
+<section>
+  <h3>{{ league.name_ja }}</h3>
+  <div class="standings-grid">
+  {% for div in league.divisions %}
+    <div class="division">
+      <h4>{{ div.name_ja }}</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>順位</th><th>チーム</th><th>勝</th><th>敗</th>
+            <th>勝率</th><th>差</th><th>直近10</th><th>連</th><th>得失</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for t in div.teams %}
+          <tr>
+            <td>{{ t.division_rank }}</td>
+            <td class="team-cell"><a href="{{ root }}teams/{{ t.abbreviation|lower }}.html">{{ t.name_ja }}</a></td>
+            <td>{{ t.wins }}</td>
+            <td>{{ t.losses }}</td>
+            <td>{{ t.pct }}</td>
+            <td>{{ t.games_back }}</td>
+            <td>{{ t.last_ten or '-' }}</td>
+            <td class="{{ 'streak-win' if t.streak and t.streak.startswith('W') else 'streak-loss' if t.streak and t.streak.startswith('L') else '' }}">{{ t.streak or '-' }}</td>
+            <td>{{ '+' ~ t.run_diff if t.run_diff and t.run_diff > 0 else t.run_diff if t.run_diff is not none else '-' }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+{% endblock %}

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}MLB データ置き場{% endblock %}</title>
+<link rel="stylesheet" href="{{ root }}static/style.css">
+</head>
+<body>
+<header>
+  <h1><a href="{{ root }}index.html">MLB データ置き場</a></h1>
+  <nav>
+    <a href="{{ root }}index.html">トップ</a>
+    <a href="{{ root }}standings.html">順位表</a>
+    <a href="{{ root }}leaders.html">リーダーボード</a>
+    <a href="{{ root }}japanese.html">日本人選手</a>
+    <a href="{{ root }}teams.html">チーム一覧</a>
+  </nav>
+  <p class="meta">{{ season }}年シーズン / 最終更新: {{ updated_at }}</p>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+<footer>
+  <p>データ提供: MLB Stats API</p>
+</footer>
+</body>
+</html>

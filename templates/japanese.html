@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}日本人選手 - {{ season }}年MLB{% endblock %}
+{% block content %}
+
+<h2>{{ season }}年 日本人MLB選手</h2>
+<p class="meta-note">MLBに在籍する日本人選手のシーズン成績一覧（ロースター登録ベース）。</p>
+
+{% if hitters %}
+<section>
+  <h3>野手 ({{ hitters|length }}名)</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>選手</th><th>チーム</th>
+        <th>試合</th><th>打席</th><th>打数</th><th>安打</th><th>本塁打</th><th>打点</th>
+        <th>盗塁</th><th>四球</th><th>三振</th>
+        <th>打率</th><th>出塁率</th><th>長打率</th><th>OPS</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for p in hitters %}
+      <tr>
+        <td class="team-cell">
+          <span class="player-ja">{{ p.name_ja }}</span>
+          <span class="player-en">{{ p.full_name }}</span>
+        </td>
+        <td><a href="{{ root }}teams/{{ p.team_abbr|lower }}.html">{{ p.team_ja }}</a></td>
+        <td>{{ p.stat.gamesPlayed or 0 }}</td>
+        <td>{{ p.stat.plateAppearances or 0 }}</td>
+        <td>{{ p.stat.atBats or 0 }}</td>
+        <td>{{ p.stat.hits or 0 }}</td>
+        <td>{{ p.stat.homeRuns or 0 }}</td>
+        <td>{{ p.stat.rbi or 0 }}</td>
+        <td>{{ p.stat.stolenBases or 0 }}</td>
+        <td>{{ p.stat.baseOnBalls or 0 }}</td>
+        <td>{{ p.stat.strikeOuts or 0 }}</td>
+        <td class="score">{{ p.stat.avg or '-' }}</td>
+        <td>{{ p.stat.obp or '-' }}</td>
+        <td>{{ p.stat.slg or '-' }}</td>
+        <td class="score">{{ p.stat.ops or '-' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if pitchers %}
+<section>
+  <h3>投手 ({{ pitchers|length }}名)</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>選手</th><th>チーム</th>
+        <th>試合</th><th>先発</th>
+        <th>勝</th><th>敗</th><th>セーブ</th>
+        <th>投球回</th><th>奪三振</th><th>与四球</th><th>被安打</th><th>被本塁打</th>
+        <th>防御率</th><th>WHIP</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for p in pitchers %}
+      <tr>
+        <td class="team-cell">
+          <span class="player-ja">{{ p.name_ja }}</span>
+          <span class="player-en">{{ p.full_name }}</span>
+        </td>
+        <td><a href="{{ root }}teams/{{ p.team_abbr|lower }}.html">{{ p.team_ja }}</a></td>
+        <td>{{ p.stat.gamesPlayed or 0 }}</td>
+        <td>{{ p.stat.gamesStarted or 0 }}</td>
+        <td>{{ p.stat.wins or 0 }}</td>
+        <td>{{ p.stat.losses or 0 }}</td>
+        <td>{{ p.stat.saves or 0 }}</td>
+        <td>{{ p.stat.inningsPitched or '-' }}</td>
+        <td>{{ p.stat.strikeOuts or 0 }}</td>
+        <td>{{ p.stat.baseOnBalls or 0 }}</td>
+        <td>{{ p.stat.hits or 0 }}</td>
+        <td>{{ p.stat.homeRuns or 0 }}</td>
+        <td class="score">{{ p.stat.era or '-' }}</td>
+        <td class="score">{{ p.stat.whip or '-' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if leader_appearances %}
+<section>
+  <h3>リーダーボードでの順位</h3>
+  <table>
+    <thead>
+      <tr><th>選手</th><th>カテゴリ</th><th>スコープ</th><th>順位</th><th>値</th></tr>
+    </thead>
+    <tbody>
+    {% for la in leader_appearances %}
+      <tr>
+        <td class="team-cell">
+          <span class="player-ja">{{ la.name_ja }}</span>
+          <span class="player-en">{{ la.player_name }}</span>
+        </td>
+        <td>{{ la.category_label }}</td>
+        <td>{{ la.scope_label }}</td>
+        <td class="score">{{ la.rank }}位</td>
+        <td class="score">{{ la.value }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% endblock %}

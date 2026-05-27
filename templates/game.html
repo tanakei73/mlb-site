@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{{ away.name_ja }} vs {{ home.name_ja }} ({{ game.game_date }}){% endblock %}
+{% block content %}
+
+<nav class="breadcrumb">
+  <a href="{{ root }}index.html">トップ</a> › <span>試合詳細</span>
+</nav>
+
+<header class="game-header">
+  <h2>
+    <a href="{{ root }}teams/{{ away.abbreviation|lower }}.html">{{ away.name_ja }}</a>
+    <span class="score-big">{{ linescore.away_runs if linescore else '-' }}</span>
+    -
+    <span class="score-big">{{ linescore.home_runs if linescore else '-' }}</span>
+    <a href="{{ root }}teams/{{ home.abbreviation|lower }}.html">{{ home.name_ja }}</a>
+  </h2>
+  <p class="team-meta">
+    {{ game.game_date }} ／ {{ game.venue }} ／ {{ game.detailed_state }}
+  </p>
+</header>
+
+{% if linescore %}
+<section>
+  <h3>ラインスコア</h3>
+  <table class="linescore">
+    <thead>
+      <tr>
+        <th></th>
+        {% for inn in innings %}<th>{{ inn.num }}</th>{% endfor %}
+        <th>R</th><th>H</th><th>E</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th class="team-cell">{{ away.name_ja }}</th>
+        {% for inn in innings %}
+          <td>{{ inn.away if inn.away is not none else '-' }}</td>
+        {% endfor %}
+        <td><strong>{{ linescore.away_runs }}</strong></td>
+        <td>{{ linescore.away_hits }}</td>
+        <td>{{ linescore.away_errors }}</td>
+      </tr>
+      <tr>
+        <th class="team-cell">{{ home.name_ja }}</th>
+        {% for inn in innings %}
+          <td>{{ inn.home if inn.home is not none else '-' }}</td>
+        {% endfor %}
+        <td><strong>{{ linescore.home_runs }}</strong></td>
+        <td>{{ linescore.home_hits }}</td>
+        <td>{{ linescore.home_errors }}</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if team_stats %}
+<section>
+  <h3>チーム成績</h3>
+  <table>
+    <thead>
+      <tr>
+        <th></th>
+        <th>打率</th><th>得点</th><th>安打</th><th>本塁打</th><th>打点</th><th>四球</th><th>三振</th>
+        <th>防御率</th><th>回</th><th>奪三振</th><th>失点</th><th>与四球</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for s in team_stats %}
+      <tr>
+        <th class="team-cell">{{ s.team_name_ja }}</th>
+        <td>{{ s.bat_avg }}</td><td>{{ s.bat_runs }}</td><td>{{ s.bat_hits }}</td>
+        <td>{{ s.bat_hr }}</td><td>{{ s.bat_rbi }}</td><td>{{ s.bat_bb }}</td><td>{{ s.bat_so }}</td>
+        <td>{{ s.pit_era }}</td><td>{{ s.pit_innings }}</td><td>{{ s.pit_strikeouts }}</td>
+        <td>{{ s.pit_runs }}</td><td>{{ s.pit_walks }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<section>
+  <h3>決定投手</h3>
+  <table class="kv">
+    <tr><th>勝利投手</th><td>{{ game.winning_pitcher or '-' }}</td></tr>
+    <tr><th>敗戦投手</th><td>{{ game.losing_pitcher or '-' }}</td></tr>
+    <tr><th>セーブ</th><td>{{ game.save_pitcher or '-' }}</td></tr>
+  </table>
+</section>
+
+{% endblock %}
