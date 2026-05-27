@@ -304,26 +304,98 @@ def copy_static() -> None:
 
 
 # -------- builders --------
+def _save_prediction(game_pk: int, home_prob: int, away_prob: int) -> None:
+    """初回のみ保存。既に保存済みなら上書きしない（事前予想を凍結）。"""
+    import datetime as _dt
+    now = _dt.datetime.now(JST).isoformat(timespec="seconds")
+    with connect() as conn:
+        conn.execute(
+            """INSERT OR IGNORE INTO game_predictions
+               (game_pk, predicted_at, home_prob, away_prob)
+               VALUES (?,?,?,?)""",
+            (game_pk, now, home_prob, away_prob),
+        )
+        conn.commit()
+
+
+def _load_prediction(game_pk: int) -> dict | None:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT predicted_at, home_prob, away_prob FROM game_predictions WHERE game_pk=?",
+            (game_pk,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def _attach_prediction(g: dict, is_future: bool) -> None:
+    """g に "pred" を付与。未来試合は計算&保存、過去試合は保存済みを取得（無ければ即時計算）。"""
+    saved = _load_prediction(g["game_pk"])
+    if saved:
+        g["pred"] = {
+            "home": saved["home_prob"],
+            "away": saved["away_prob"],
+            "predicted_at": saved["predicted_at"],
+            "is_pregame": True,
+        }
+        return
+    # 保存なし → 計算
+    try:
+        p = predict(g)
+        g["pred"] = {
+            "home": p.home_prob,
+            "away": p.away_prob,
+            "predicted_at": None,
+            "is_pregame": False,  # 事後計算
+        }
+        if is_future:
+            _save_prediction(g["game_pk"], p.home_prob, p.away_prob)
+            g["pred"]["is_pregame"] = True  # 今保存したので「事前」扱い
+    except Exception:
+        g["pred"] = None
+
+
 def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
     today_iso = today.isoformat()
-    # 「本日の試合」= 米国時間で today (officialDate) の試合を採用
-    # (JST で見ている時、米国時間 today = JST 翌朝〜翌深夜 にこれから始まる試合群)
+    yesterday_iso = (today - dt.timedelta(days=1)).isoformat()
+
+    # 「本日の試合」= 米国時間 today
     today_games = []
     for g in load_games(today_iso):
         g["start_jst"] = to_jst_time(g["game_datetime"])
         # 試合前 (Preview) のみ予想を出す
         if g.get("status") in ("Preview", None) or g.get("away_score") is None:
-            try:
-                pred = predict(g)
-                g["pred"] = {
-                    "home": pred.home_prob,
-                    "away": pred.away_prob,
-                }
-            except Exception:
-                g["pred"] = None
+            _attach_prediction(g, is_future=True)
         else:
-            g["pred"] = None
+            # 既に試合中/終了。保存済み予想があれば付ける
+            _attach_prediction(g, is_future=False)
         today_games.append(g)
+
+    # 「昨日の試合（米国時間 yesterday）」予想 vs 実績
+    yesterday_games = []
+    for g in load_games(yesterday_iso):
+        if g.get("status") != "Final" or g.get("away_score") is None:
+            continue
+        _attach_prediction(g, is_future=False)
+        # 的中判定
+        if g.get("pred"):
+            home_won = g["home_score"] > g["away_score"]
+            predicted_home = g["pred"]["home"] > g["pred"]["away"]
+            g["pred"]["correct"] = (home_won == predicted_home)
+        yesterday_games.append(g)
+    # 開始時刻順
+    yesterday_games.sort(key=lambda x: x.get("game_datetime") or "")
+
+    # 的中率
+    pred_summary = None
+    if yesterday_games:
+        with_pred = [g for g in yesterday_games if g.get("pred")]
+        if with_pred:
+            correct = sum(1 for g in with_pred if g["pred"].get("correct"))
+            pred_summary = {
+                "total": len(with_pred),
+                "correct": correct,
+                "pct": round(correct / len(with_pred) * 100),
+            }
 
     recent_games = []
     for i in range(1, 4):
@@ -343,6 +415,8 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
         "active": "top",
         "today_label": today.strftime("%Y年%m月%d日 (JST)"),
         "today_games": today_games,
+        "yesterday_games": yesterday_games,
+        "pred_summary": pred_summary,
         "divisions": flat_divs,
         "recent_games": recent_games,
     }, SITE / "index.html")

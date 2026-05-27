@@ -67,6 +67,13 @@ CREATE TABLE IF NOT EXISTS team_season_stats (
     FOREIGN KEY (team_id) REFERENCES teams(team_id)
 );
 
+CREATE TABLE IF NOT EXISTS game_predictions (
+    game_pk        INTEGER PRIMARY KEY,
+    predicted_at   TEXT,
+    home_prob      INTEGER,
+    away_prob      INTEGER
+);
+
 CREATE INDEX IF NOT EXISTS idx_games_date ON games(game_date);
 CREATE INDEX IF NOT EXISTS idx_games_teams ON games(away_team_id, home_team_id);
 

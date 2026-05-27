@@ -61,6 +61,69 @@
   {% endif %}
 </section>
 
+{% if yesterday_games %}
+<section>
+  <h2>昨日の試合 (予想 vs 実績)
+    {% if pred_summary %}
+      <small class="pred-summary">的中率 {{ pred_summary.pct }}% ({{ pred_summary.correct }}/{{ pred_summary.total }})</small>
+    {% endif %}
+  </h2>
+  <div class="table-wrap">
+  <table class="games">
+    <thead>
+      <tr>
+        <th>ビジター</th>
+        <th>先発</th>
+        <th>予想</th>
+        <th>先発</th>
+        <th>ホーム</th>
+        <th>結果</th>
+        <th>的中</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for g in yesterday_games %}
+      <tr class="{% if g.pred and g.pred.correct %}game-win{% elif g.pred %}game-loss{% endif %}">
+        <td class="team-cell {{ 'winner' if g.away_score > g.home_score else '' }}">
+          <a href="{{ root }}teams/{{ g.away_abbr|lower }}.html">{{ g.away_name_ja }}</a>
+        </td>
+        <td class="pitcher-cell">
+          {% if g.away_pitcher_id %}
+            <a href="{{ root }}players/pitchers/{{ g.away_pitcher_id }}.html">{{ g.away_pitcher }}</a>
+          {% else %}{{ g.away_pitcher or '-' }}{% endif %}
+        </td>
+        <td class="pred-cell">
+          {% if g.pred %}
+            <span class="pred away {% if g.pred.away > g.pred.home %}fav{% endif %}">{{ g.pred.away }}%</span>
+            <span class="pred-sep">-</span>
+            <span class="pred home {% if g.pred.home > g.pred.away %}fav{% endif %}">{{ g.pred.home }}%</span>
+          {% else %}<span class="muted">-</span>{% endif %}
+        </td>
+        <td class="pitcher-cell">
+          {% if g.home_pitcher_id %}
+            <a href="{{ root }}players/pitchers/{{ g.home_pitcher_id }}.html">{{ g.home_pitcher }}</a>
+          {% else %}{{ g.home_pitcher or '-' }}{% endif %}
+        </td>
+        <td class="team-cell {{ 'winner' if g.home_score > g.away_score else '' }}">
+          <a href="{{ root }}teams/{{ g.home_abbr|lower }}.html">{{ g.home_name_ja }}</a>
+        </td>
+        <td class="score"><a href="{{ root }}games/{{ g.game_pk }}.html">{{ g.away_score }} - {{ g.home_score }}</a></td>
+        <td>
+          {% if g.pred and g.pred.is_pregame %}
+            {% if g.pred.correct %}<span class="result-badge win">○</span>{% else %}<span class="result-badge loss">×</span>{% endif %}
+          {% elif g.pred %}
+            <span class="result-badge nd" title="事前予想ではなく事後再計算">参考</span>
+          {% else %}-{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="meta-note">※「参考」は予想を事前に保存していなかった試合（現データで再計算）。事前予想保存後の試合は ○ / × で正解判定されます。</p>
+</section>
+{% endif %}
+
 <section>
   <h2>順位表</h2>
   <div class="standings-grid">

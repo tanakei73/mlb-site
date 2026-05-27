@@ -271,6 +271,14 @@ td.pred-cell .pred.fav {
 td.pred-cell .pred-sep { color: #ccc; margin: 0 2px; }
 .muted { color: #ccc; }
 
+.pred-summary {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-sub);
+  margin-left: 12px;
+  font-family: var(--font-num);
+}
+
 /* ============ 順位表 ============ */
 .standings-grid {
   display: grid;
