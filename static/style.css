@@ -483,6 +483,27 @@ table.kv td { text-align: left; }
   color: #444;
 }
 
+/* イニング別失点ヒートマップ */
+table.inning-table th { background: var(--color-bg-alt); }
+table.inning-table tbody th {
+  text-align: right;
+  background: var(--color-bg-alt);
+  font-weight: 600;
+  color: #333;
+  font-size: 11px;
+  min-width: 50px;
+}
+table.inning-table td {
+  font-family: var(--font-num);
+  min-width: 36px;
+}
+.heat-0 { background: #ffffff; }
+.heat-1 { background: #fdf3e8; }
+.heat-2 { background: #fbe4cc; color: #6f4118; }
+.heat-3 { background: #f7cea0; color: #5a3110; font-weight: 700; }
+.heat-4 { background: #ee9f5e; color: #fff; font-weight: 700; }
+.heat-5plus { background: #c66a25; color: #fff; font-weight: 700; }
+
 /* ============ ノート文 ============ */
 .meta-note {
   font-size: 11.5px;

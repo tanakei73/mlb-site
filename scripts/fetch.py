@@ -377,11 +377,13 @@ def fetch_pitcher_detail(player_id: int) -> int:
             conn.commit()
         saved += len(rows)
 
-    # --- splits (3種類) ---
+    # --- splits (4種類) ---
     split_specs = [
         ("byMonth", "byMonth", None),
         ("homeAndAway", "homeAndAway", None),
         ("statSplits", "vsHand", "vl,vr"),
+        ("statSplits", "byInning",
+         "i01,i02,i03,i04,i05,i06,i07,i08,i09,i10,i11,i12"),
     ]
     split_rows = []
     for stats_param, split_label, sit_codes in split_specs:
@@ -403,6 +405,10 @@ def fetch_pitcher_detail(player_id: int) -> int:
                 code = (sp.get("split") or {}).get("code")
                 # vl, vr
                 key = "vsLeft" if code == "vl" else ("vsRight" if code == "vr" else code or "?")
+            elif split_label == "byInning":
+                code = (sp.get("split") or {}).get("code") or ""
+                # 'i01' -> '1'
+                key = str(int(code[1:])) if code.startswith("i") and code[1:].isdigit() else code
             else:
                 key = "?"
             split_rows.append((

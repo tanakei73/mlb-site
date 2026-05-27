@@ -101,6 +101,61 @@
 </section>
 {% endif %}
 
+{% if by_inning %}
+<section>
+  <h3>イニング別失点</h3>
+  <div class="table-wrap">
+  <table class="inning-table">
+    <thead>
+      <tr>
+        <th></th>
+        {% for row in by_inning %}<th>{{ row.inning }}回</th>{% endfor %}
+        <th>計</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th>失点</th>
+        {% for row in by_inning %}
+          <td class="{{ 'heat-' ~ row.runs if row.has_data and row.runs is number and row.runs <= 4 else 'heat-5plus' if row.has_data and row.runs is number and row.runs > 4 else '' }}">{{ row.runs }}</td>
+        {% endfor %}
+        <td><strong>{{ by_inning_total.runs }}</strong></td>
+      </tr>
+      <tr>
+        <th>自責</th>
+        {% for row in by_inning %}
+          <td>{{ row.er }}</td>
+        {% endfor %}
+        <td><strong>{{ by_inning_total.er }}</strong></td>
+      </tr>
+      <tr>
+        <th>奪三振</th>
+        {% for row in by_inning %}
+          <td>{{ row.k }}</td>
+        {% endfor %}
+        <td><strong>{{ by_inning_total.k }}</strong></td>
+      </tr>
+      <tr>
+        <th>被安</th>
+        {% for row in by_inning %}
+          <td>{{ row.hits }}</td>
+        {% endfor %}
+        <td><strong>{{ by_inning_total.hits }}</strong></td>
+      </tr>
+      <tr>
+        <th>与四球</th>
+        {% for row in by_inning %}
+          <td>{{ row.bb }}</td>
+        {% endfor %}
+        <td><strong>{{ by_inning_total.bb }}</strong></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="meta-note">各イニングを跨ぐ登板での集計。色濃度が濃いほど失点が多い。</p>
+</section>
+{% endif %}
+
 <div class="split-grid">
 
 {% if by_month %}

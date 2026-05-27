@@ -583,6 +583,7 @@ def load_pitcher_data(player_id: int, teams: dict) -> dict | None:
     by_month_raw: dict[str, dict] = {}
     home_away_raw: dict[str, dict] = {}
     vs_hand_raw: dict[str, dict] = {}
+    by_inning_raw: dict[int, dict] = {}
     for r in split_rows:
         try:
             stat = json.loads(r["stats_json"])
@@ -594,6 +595,11 @@ def load_pitcher_data(player_id: int, teams: dict) -> dict | None:
             home_away_raw[r["split_key"]] = stat
         elif r["split_type"] == "vsHand":
             vs_hand_raw[r["split_key"]] = stat
+        elif r["split_type"] == "byInning":
+            try:
+                by_inning_raw[int(r["split_key"])] = stat
+            except ValueError:
+                pass
 
     by_month = [
         {"label": k, "stat": v}
@@ -601,6 +607,35 @@ def load_pitcher_data(player_id: int, teams: dict) -> dict | None:
     ]
     home_away = [{"key": k, "stat": home_away_raw[k]} for k in ("home", "away") if k in home_away_raw]
     vs_hand = [{"key": k, "stat": vs_hand_raw[k]} for k in ("vsLeft", "vsRight") if k in vs_hand_raw]
+
+    # イニング別失点: 1～最大イニングまで連番で埋める
+    by_inning = []
+    if by_inning_raw:
+        max_inn = max(by_inning_raw.keys())
+        # 9回までは固定で表示、延長分は実データがあれば追加
+        last = max(9, max_inn)
+        totals = {"runs": 0, "er": 0, "k": 0, "hits": 0, "bb": 0}
+        for i in range(1, last + 1):
+            stat = by_inning_raw.get(i)
+            if stat:
+                row = {
+                    "inning": i,
+                    "runs": stat.get("runs") or 0,
+                    "er":   stat.get("earnedRuns") or 0,
+                    "k":    stat.get("strikeOuts") or 0,
+                    "hits": stat.get("hits") or 0,
+                    "bb":   stat.get("baseOnBalls") or 0,
+                    "has_data": True,
+                }
+                for k in totals:
+                    totals[k] += row[k]
+            else:
+                row = {"inning": i, "runs": "-", "er": "-", "k": "-",
+                       "hits": "-", "bb": "-", "has_data": False}
+            by_inning.append(row)
+        by_inning_total = {**totals, "label": "合計"}
+    else:
+        by_inning_total = None
 
     # gameLog から対チーム・球場の集計を作る
     opp_agg: dict[int, dict] = {}
@@ -659,6 +694,8 @@ def load_pitcher_data(player_id: int, teams: dict) -> dict | None:
         "by_month": by_month,
         "home_away": home_away,
         "vs_hand": vs_hand,
+        "by_inning": by_inning,
+        "by_inning_total": by_inning_total,
         "by_opponent": by_opponent,
         "by_venue": by_venue,
     }
