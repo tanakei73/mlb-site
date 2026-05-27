@@ -714,7 +714,7 @@ def build_pitcher_pages(env, base_ctx, teams: dict) -> int:
         data = load_pitcher_data(r["player_id"], teams)
         if not data or not data["team"]:
             continue
-        ctx = {**base_ctx, "active": None, "root": "../", "season": SEASON, **data}
+        ctx = {**base_ctx, "active": None, "root": "../../", "season": SEASON, **data}
         out = SITE / "players" / "pitchers" / f"{r['player_id']}.html"
         render(env, "player_pitcher.html", ctx, out)
         count += 1
