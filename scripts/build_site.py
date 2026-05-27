@@ -10,6 +10,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from db import connect
+from predict import predict
 from venue_master import venue_short
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -305,15 +306,24 @@ def copy_static() -> None:
 # -------- builders --------
 def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
     today_iso = today.isoformat()
-    today_games_raw = (
-        load_games(today_iso)
-        + load_games((today - dt.timedelta(days=1)).isoformat())
-    )
+    # 「本日の試合」= 米国時間で today (officialDate) の試合を採用
+    # (JST で見ている時、米国時間 today = JST 翌朝〜翌深夜 にこれから始まる試合群)
     today_games = []
-    for g in today_games_raw:
+    for g in load_games(today_iso):
         g["start_jst"] = to_jst_time(g["game_datetime"])
-        if to_jst_date(g["game_datetime"]) == today_iso:
-            today_games.append(g)
+        # 試合前 (Preview) のみ予想を出す
+        if g.get("status") in ("Preview", None) or g.get("away_score") is None:
+            try:
+                pred = predict(g)
+                g["pred"] = {
+                    "home": pred.home_prob,
+                    "away": pred.away_prob,
+                }
+            except Exception:
+                g["pred"] = None
+        else:
+            g["pred"] = None
+        today_games.append(g)
 
     recent_games = []
     for i in range(1, 4):

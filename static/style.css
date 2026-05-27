@@ -235,6 +235,42 @@ td.venue {
 .streak-win  { color: var(--color-win);  font-weight: 700; }
 .streak-loss { color: var(--color-loss); font-weight: 700; }
 
+/* 予想セル */
+td.pitcher-cell {
+  text-align: left;
+  font-size: 11px;
+  color: var(--color-text-sub);
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+td.pitcher-cell a {
+  color: var(--color-link);
+  text-decoration: none;
+}
+td.pitcher-cell a:hover { text-decoration: underline; }
+
+td.pred-cell {
+  font-family: var(--font-num);
+  white-space: nowrap;
+  min-width: 90px;
+  background: linear-gradient(to bottom, #fafaf8 0%, #fff 100%);
+}
+td.pred-cell .pred {
+  display: inline-block;
+  padding: 1px 4px;
+  font-size: 11px;
+  color: var(--color-text-sub);
+}
+td.pred-cell .pred.fav {
+  color: var(--color-header);
+  font-weight: 700;
+  background: var(--color-accent-soft);
+  border-radius: 3px;
+}
+td.pred-cell .pred-sep { color: #ccc; margin: 0 2px; }
+.muted { color: #ccc; }
+
 /* ============ 順位表 ============ */
 .standings-grid {
   display: grid;

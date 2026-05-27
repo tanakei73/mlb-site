@@ -133,7 +133,9 @@ def fetch_schedule(start: str, end: str) -> None:
                     g.get("venue", {}).get("name"),
                     g.get("seriesDescription"),
                     (away.get("probablePitcher") or {}).get("fullName"),
+                    (away.get("probablePitcher") or {}).get("id"),
                     (home.get("probablePitcher") or {}).get("fullName"),
+                    (home.get("probablePitcher") or {}).get("id"),
                     (decisions.get("winner") or {}).get("fullName"),
                     (decisions.get("loser") or {}).get("fullName"),
                     (decisions.get("save") or {}).get("fullName"),
@@ -144,9 +146,10 @@ def fetch_schedule(start: str, end: str) -> None:
             """INSERT OR REPLACE INTO games
             (game_pk, game_date, game_datetime, status, detailed_state,
              away_team_id, away_score, home_team_id, home_score, venue,
-             series_description, away_pitcher, home_pitcher,
+             series_description, away_pitcher, away_pitcher_id,
+             home_pitcher, home_pitcher_id,
              winning_pitcher, losing_pitcher, save_pitcher)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             rows,
         )
         conn.commit()
@@ -295,6 +298,41 @@ def fetch_japanese_player_stats() -> None:
                 conn.commit()
             saved += 1
     print(f"[jp_stats] saved {saved} stat blocks for {len(rows)} players")
+
+
+def fetch_team_season_stats() -> None:
+    """全30チームの hitting / pitching シーズン成績を取得。"""
+    with connect() as conn:
+        team_ids = [r["team_id"] for r in conn.execute("SELECT team_id FROM teams")]
+    now = dt.datetime.now(JST).isoformat(timespec="seconds")
+    saved = 0
+    for tid in team_ids:
+        for grp in ("hitting", "pitching"):
+            try:
+                data = _get(f"teams/{tid}/stats",
+                            stats="season", group=grp, season=SEASON)
+            except requests.HTTPError as e:
+                print(f"  WARN team_stats {tid}/{grp}: {e}", file=sys.stderr)
+                continue
+            stats_blocks = data.get("stats") or []
+            if not stats_blocks:
+                continue
+            splits = stats_blocks[0].get("splits") or []
+            if not splits:
+                continue
+            stat = splits[0].get("stat")
+            if not stat:
+                continue
+            with connect() as conn:
+                conn.execute(
+                    """INSERT OR REPLACE INTO team_season_stats
+                    (team_id, season, stat_group, stats_json, updated_at)
+                    VALUES (?,?,?,?,?)""",
+                    (tid, SEASON, grp, json.dumps(stat, ensure_ascii=False), now),
+                )
+                conn.commit()
+            saved += 1
+    print(f"[team_stats] saved {saved} stat blocks for {len(team_ids)} teams")
 
 
 def fetch_pitcher_detail(player_id: int) -> int:
@@ -550,6 +588,7 @@ def main() -> None:
     fetch_standings()
     fetch_schedule(start, end)
     fetch_rosters()
+    fetch_team_season_stats()
     fetch_leaders()
     fetch_japanese_player_stats()
     fetch_starting_pitchers()

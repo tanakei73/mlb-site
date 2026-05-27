@@ -49,10 +49,22 @@ CREATE TABLE IF NOT EXISTS games (
     venue              TEXT,
     series_description TEXT,
     away_pitcher       TEXT,
+    away_pitcher_id    INTEGER,
     home_pitcher       TEXT,
+    home_pitcher_id    INTEGER,
     winning_pitcher    TEXT,
     losing_pitcher     TEXT,
     save_pitcher       TEXT
+);
+
+CREATE TABLE IF NOT EXISTS team_season_stats (
+    team_id        INTEGER,
+    season         INTEGER,
+    stat_group     TEXT,            -- 'hitting' or 'pitching'
+    stats_json     TEXT,
+    updated_at     TEXT,
+    PRIMARY KEY (team_id, season, stat_group),
+    FOREIGN KEY (team_id) REFERENCES teams(team_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_games_date ON games(game_date);
@@ -194,6 +206,8 @@ def init_db() -> None:
         # 旧バージョンのDBに対する後方互換マイグレーション
         _ensure_column(conn, "players", "full_name_ja", "TEXT")
         _ensure_column(conn, "leaders", "player_name_ja", "TEXT")
+        _ensure_column(conn, "games", "away_pitcher_id", "INTEGER")
+        _ensure_column(conn, "games", "home_pitcher_id", "INTEGER")
         conn.commit()
 
 

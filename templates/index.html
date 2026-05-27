@@ -5,13 +5,17 @@
 <section>
   <h2>本日の試合 ({{ today_label }})</h2>
   {% if today_games %}
+  <div class="table-wrap">
   <table class="games">
     <thead>
       <tr>
         <th>開始 (JST)</th>
         <th>ビジター</th>
-        <th>スコア</th>
+        <th>先発</th>
+        <th>予想</th>
+        <th>先発</th>
         <th>ホーム</th>
+        <th>スコア</th>
         <th>状況</th>
         <th>球場</th>
       </tr>
@@ -21,18 +25,37 @@
       <tr>
         <td>{{ g.start_jst }}</td>
         <td class="team-cell"><a href="{{ root }}teams/{{ g.away_abbr|lower }}.html">{{ g.away_name_ja }}</a></td>
+        <td class="pitcher-cell">
+          {% if g.away_pitcher_id %}
+            <a href="{{ root }}players/pitchers/{{ g.away_pitcher_id }}.html">{{ g.away_pitcher }}</a>
+          {% else %}{{ g.away_pitcher or '未定' }}{% endif %}
+        </td>
+        <td class="pred-cell">
+          {% if g.pred %}
+            <span class="pred away {% if g.pred.away > g.pred.home %}fav{% endif %}">{{ g.pred.away }}%</span>
+            <span class="pred-sep">-</span>
+            <span class="pred home {% if g.pred.home > g.pred.away %}fav{% endif %}">{{ g.pred.home }}%</span>
+          {% else %}<span class="muted">-</span>{% endif %}
+        </td>
+        <td class="pitcher-cell">
+          {% if g.home_pitcher_id %}
+            <a href="{{ root }}players/pitchers/{{ g.home_pitcher_id }}.html">{{ g.home_pitcher }}</a>
+          {% else %}{{ g.home_pitcher or '未定' }}{% endif %}
+        </td>
+        <td class="team-cell"><a href="{{ root }}teams/{{ g.home_abbr|lower }}.html">{{ g.home_name_ja }}</a></td>
         <td class="score">
           {% if g.away_score is not none %}
             <a href="{{ root }}games/{{ g.game_pk }}.html">{{ g.away_score }} - {{ g.home_score }}</a>
           {% else %}-{% endif %}
         </td>
-        <td class="team-cell"><a href="{{ root }}teams/{{ g.home_abbr|lower }}.html">{{ g.home_name_ja }}</a></td>
         <td>{{ g.detailed_state }}</td>
         <td class="venue" title="{{ g.venue }}">{{ g.venue | venue_short }}</td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
+  </div>
+  <p class="meta-note">※「予想」は先発投手の成績・チーム打撃力・ホームアドバンテージ・対戦相手別実績から自前計算した目安スコアで、予測モデルではありません。</p>
   {% else %}
     <p>本日開催予定の試合はありません。</p>
   {% endif %}
