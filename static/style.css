@@ -483,6 +483,43 @@ table.kv td { text-align: left; }
   color: #444;
 }
 
+/* 試合別成績の勝敗強調 */
+tr.game-win  { background: #eef7f1; }
+tr.game-loss { background: #faf0ef; }
+tr.game-nd   { background: var(--color-bg); }
+tr.game-win:hover,
+tr.game-loss:hover,
+tr.game-nd:hover { background: var(--color-accent-soft); }
+
+tr.game-win > td:first-child,
+tr.game-loss > td:first-child {
+  position: relative;
+}
+tr.game-win > td:first-child::before  { background: var(--color-win); }
+tr.game-loss > td:first-child::before { background: var(--color-loss); }
+tr.game-win > td:first-child::before,
+tr.game-loss > td:first-child::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+}
+
+.result-badge {
+  display: inline-block;
+  padding: 1px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 10px;
+  min-width: 26px;
+  text-align: center;
+  font-family: var(--font-jp);
+  letter-spacing: 0.05em;
+}
+.result-badge.win  { background: var(--color-win);  color: #fff; }
+.result-badge.loss { background: var(--color-loss); color: #fff; }
+.result-badge.nd   { background: #e0e0dd; color: #888; }
+
 /* イニング別失点ヒートマップ */
 table.inning-table th { background: var(--color-bg-alt); }
 table.inning-table tbody th {

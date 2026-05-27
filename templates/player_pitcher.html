@@ -78,12 +78,18 @@
     </thead>
     <tbody>
     {% for g in game_log %}
-      <tr>
+      <tr class="{{ 'game-win' if g.is_win == 1 else 'game-loss' if g.is_win == 0 else 'game-nd' }}">
         <td><a href="{{ root }}games/{{ g.game_pk }}.html">{{ g.game_date }}</a></td>
         <td class="team-cell">{{ '@' if not g.is_home else 'vs' }} {{ g.opponent_ja }}</td>
         <td class="venue" title="{{ g.venue or '' }}">{{ g.venue | venue_short if g.venue else '-' }}</td>
-        <td class="{{ 'streak-win' if g.is_win == 1 else 'streak-loss' if g.is_win == 0 else '' }}">
-          {% if g.is_win == 1 %}勝{% elif g.is_win == 0 %}敗{% else %}-{% endif %}
+        <td>
+          {% if g.is_win == 1 %}
+            <span class="result-badge win">勝</span>
+          {% elif g.is_win == 0 %}
+            <span class="result-badge loss">敗</span>
+          {% else %}
+            <span class="result-badge nd">−</span>
+          {% endif %}
         </td>
         <td>{{ g.stat.inningsPitched }}</td>
         <td>{{ g.stat.hits }}</td>
