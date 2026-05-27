@@ -63,28 +63,31 @@
 
 {% if yesterday_games %}
 <section>
-  <h2>昨日の試合 (予想 vs 実績)
+  <h2>昨日〜本日早朝の試合 (予想 vs 実績)
     {% if pred_summary %}
-      <small class="pred-summary">的中率 {{ pred_summary.pct }}% ({{ pred_summary.correct }}/{{ pred_summary.total }})</small>
+      <small class="pred-summary">的中率 {{ pred_summary.pct }}% ({{ pred_summary.correct }}/{{ pred_summary.total }} 確定分)</small>
     {% endif %}
   </h2>
   <div class="table-wrap">
   <table class="games">
     <thead>
       <tr>
+        <th>開始 (JST)</th>
         <th>ビジター</th>
         <th>先発</th>
         <th>予想</th>
         <th>先発</th>
         <th>ホーム</th>
         <th>結果</th>
+        <th>状況</th>
         <th>的中</th>
       </tr>
     </thead>
     <tbody>
     {% for g in yesterday_games %}
-      <tr class="{% if g.pred and g.pred.correct %}game-win{% elif g.pred %}game-loss{% endif %}">
-        <td class="team-cell {{ 'winner' if g.away_score > g.home_score else '' }}">
+      <tr class="{% if g.is_final and g.pred and g.pred.correct %}game-win{% elif g.is_final and g.pred %}game-loss{% else %}game-nd{% endif %}">
+        <td>{{ g.start_jst }}</td>
+        <td class="team-cell {{ 'winner' if g.is_final and g.away_score > g.home_score else '' }}">
           <a href="{{ root }}teams/{{ g.away_abbr|lower }}.html">{{ g.away_name_ja }}</a>
         </td>
         <td class="pitcher-cell">
@@ -104,15 +107,24 @@
             <a href="{{ root }}players/pitchers/{{ g.home_pitcher_id }}.html">{{ g.home_pitcher }}</a>
           {% else %}{{ g.home_pitcher or '-' }}{% endif %}
         </td>
-        <td class="team-cell {{ 'winner' if g.home_score > g.away_score else '' }}">
+        <td class="team-cell {{ 'winner' if g.is_final and g.home_score > g.away_score else '' }}">
           <a href="{{ root }}teams/{{ g.home_abbr|lower }}.html">{{ g.home_name_ja }}</a>
         </td>
-        <td class="score"><a href="{{ root }}games/{{ g.game_pk }}.html">{{ g.away_score }} - {{ g.home_score }}</a></td>
+        <td class="score">
+          {% if g.away_score is not none %}
+            <a href="{{ root }}games/{{ g.game_pk }}.html">{{ g.away_score }} - {{ g.home_score }}</a>
+          {% else %}-{% endif %}
+        </td>
+        <td>{{ g.detailed_state }}</td>
         <td>
-          {% if g.pred and g.pred.is_pregame %}
+          {% if g.is_final and g.pred and g.pred.is_pregame %}
             {% if g.pred.correct %}<span class="result-badge win">○</span>{% else %}<span class="result-badge loss">×</span>{% endif %}
-          {% elif g.pred %}
+          {% elif g.is_final and g.pred %}
             <span class="result-badge nd" title="事前予想ではなく事後再計算">参考</span>
+          {% elif g.is_live %}
+            <span class="result-badge nd">進行中</span>
+          {% elif g.pred %}
+            <span class="result-badge nd">未開始</span>
           {% else %}-{% endif %}
         </td>
       </tr>
@@ -120,7 +132,7 @@
     </tbody>
   </table>
   </div>
-  <p class="meta-note">※「参考」は予想を事前に保存していなかった試合（現データで再計算）。事前予想保存後の試合は ○ / × で正解判定されます。</p>
+  <p class="meta-note">※ 米国時間で前日のスケジュール（JSTで言うと今日深夜〜明朝の試合）。「○/×」は事前保存予想の判定、「参考」は事後再計算、「進行中」「未開始」は判定保留。</p>
 </section>
 {% endif %}
 

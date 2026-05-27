@@ -371,31 +371,38 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
         today_games.append(g)
 
     # 「昨日の試合（米国時間 yesterday）」予想 vs 実績
+    # status は問わず取得 (Final / In Progress / Preview いずれも表示)
     yesterday_games = []
     for g in load_games(yesterday_iso):
-        if g.get("status") != "Final" or g.get("away_score") is None:
-            continue
-        _attach_prediction(g, is_future=False)
-        # 的中判定
-        if g.get("pred"):
+        g["start_jst"] = to_jst_time(g["game_datetime"])
+        is_final = g.get("status") == "Final"
+        is_live = g.get("status") in ("Live", "In Progress")
+        # is_future ロジック: 未確定 (Final 以外) なら今後の動向も予想対象
+        _attach_prediction(g, is_future=not is_final)
+        # 的中判定は Final のみ
+        if is_final and g.get("pred") and g.get("away_score") is not None:
             home_won = g["home_score"] > g["away_score"]
             predicted_home = g["pred"]["home"] > g["pred"]["away"]
             g["pred"]["correct"] = (home_won == predicted_home)
+        g["is_final"] = is_final
+        g["is_live"] = is_live
         yesterday_games.append(g)
     # 開始時刻順
     yesterday_games.sort(key=lambda x: x.get("game_datetime") or "")
 
-    # 的中率
+    # 的中率は Final のみで計算
     pred_summary = None
-    if yesterday_games:
-        with_pred = [g for g in yesterday_games if g.get("pred")]
-        if with_pred:
-            correct = sum(1 for g in with_pred if g["pred"].get("correct"))
-            pred_summary = {
-                "total": len(with_pred),
-                "correct": correct,
-                "pct": round(correct / len(with_pred) * 100),
-            }
+    final_with_pred = [
+        g for g in yesterday_games
+        if g.get("is_final") and g.get("pred") and "correct" in g["pred"]
+    ]
+    if final_with_pred:
+        correct = sum(1 for g in final_with_pred if g["pred"]["correct"])
+        pred_summary = {
+            "total": len(final_with_pred),
+            "correct": correct,
+            "pct": round(correct / len(final_with_pred) * 100),
+        }
 
     recent_games = []
     for i in range(1, 4):
