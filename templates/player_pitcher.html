@@ -70,25 +70,23 @@
   <table>
     <thead>
       <tr>
-        <th>日付</th><th>対戦</th><th>場所</th><th>球場</th><th>結果</th>
-        <th>投球回</th><th>被安</th><th>被本</th>
+        <th>日付</th><th>対戦</th><th>球場</th><th>結果</th>
+        <th>投球回</th><th>被安</th>
         <th>失点</th><th>自責</th><th>奪三振</th><th>与四球</th>
-        <th>球数</th><th>ERA</th>
+        <th>球数</th><th>試合ERA</th>
       </tr>
     </thead>
     <tbody>
     {% for g in game_log %}
       <tr>
         <td><a href="{{ root }}games/{{ g.game_pk }}.html">{{ g.game_date }}</a></td>
-        <td class="team-cell">{{ g.opponent_ja }}</td>
-        <td>{{ '本拠地' if g.is_home else 'ビジター' }}</td>
+        <td class="team-cell">{{ '@' if not g.is_home else 'vs' }} {{ g.opponent_ja }}</td>
         <td class="venue" title="{{ g.venue or '' }}">{{ g.venue | venue_short if g.venue else '-' }}</td>
         <td class="{{ 'streak-win' if g.is_win == 1 else 'streak-loss' if g.is_win == 0 else '' }}">
           {% if g.is_win == 1 %}勝{% elif g.is_win == 0 %}敗{% else %}-{% endif %}
         </td>
         <td>{{ g.stat.inningsPitched }}</td>
         <td>{{ g.stat.hits }}</td>
-        <td>{{ g.stat.homeRuns }}</td>
         <td>{{ g.stat.runs }}</td>
         <td>{{ g.stat.earnedRuns }}</td>
         <td>{{ g.stat.strikeOuts }}</td>
@@ -99,6 +97,7 @@
     {% endfor %}
     </tbody>
   </table>
+  </div>
 </section>
 {% endif %}
 

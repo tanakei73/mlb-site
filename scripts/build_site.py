@@ -330,6 +330,7 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
 
     render(env, "index.html", {
         **base_ctx,
+        "active": "top",
         "today_label": today.strftime("%Y年%m月%d日 (JST)"),
         "today_games": today_games,
         "divisions": flat_divs,
@@ -338,11 +339,11 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
 
 
 def build_standings(env, base_ctx, leagues) -> None:
-    render(env, "standings.html", {**base_ctx, "leagues": leagues}, SITE / "standings.html")
+    render(env, "standings.html", {**base_ctx, "active": "standings", "leagues": leagues}, SITE / "standings.html")
 
 
 def build_teams_index(env, base_ctx, leagues) -> None:
-    render(env, "teams_index.html", {**base_ctx, "leagues": leagues}, SITE / "teams.html")
+    render(env, "teams_index.html", {**base_ctx, "active": "teams", "leagues": leagues}, SITE / "teams.html")
 
 
 def build_team_pages(env, base_ctx, teams: dict, standings: dict, today) -> None:
@@ -352,6 +353,7 @@ def build_team_pages(env, base_ctx, teams: dict, standings: dict, today) -> None
         roster = load_roster(team_id)
         ctx = {
             **base_ctx,
+            "active": "teams",
             "root": "../",
             "team": team,
             "standing": standings.get(team_id, {}),
@@ -386,6 +388,7 @@ def build_game_pages(env, base_ctx, teams: dict) -> None:
         ls, innings, team_stats = load_boxscore(game_pk)
         ctx = {
             **base_ctx,
+            "active": None,
             "root": "../",
             "game": game,
             "away": away,
@@ -664,7 +667,7 @@ def build_pitcher_pages(env, base_ctx, teams: dict) -> int:
         data = load_pitcher_data(r["player_id"], teams)
         if not data or not data["team"]:
             continue
-        ctx = {**base_ctx, "root": "../", "season": SEASON, **data}
+        ctx = {**base_ctx, "active": None, "root": "../", "season": SEASON, **data}
         out = SITE / "players" / "pitchers" / f"{r['player_id']}.html"
         render(env, "player_pitcher.html", ctx, out)
         count += 1
@@ -675,6 +678,7 @@ def build_japanese_page(env, base_ctx) -> None:
     hitters, pitchers, leader_appearances = load_japanese_player_stats()
     ctx = {
         **base_ctx,
+        "active": "japanese",
         "hitters": hitters,
         "pitchers": pitchers,
         "leader_appearances": leader_appearances,
@@ -701,7 +705,7 @@ def build_leaders_page(env, base_ctx) -> None:
             "pitching": pitching_blocks,
         })
 
-    render(env, "leaders.html", {**base_ctx, "scopes": scopes}, SITE / "leaders.html")
+    render(env, "leaders.html", {**base_ctx, "active": "leaders", "scopes": scopes}, SITE / "leaders.html")
 
 
 def main() -> None:

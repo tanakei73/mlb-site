@@ -8,21 +8,28 @@
 </head>
 <body>
 <header>
-  <h1><a href="{{ root }}index.html">MLB データ置き場</a></h1>
-  <nav>
-    <a href="{{ root }}index.html">トップ</a>
-    <a href="{{ root }}standings.html">順位表</a>
-    <a href="{{ root }}leaders.html">リーダーボード</a>
-    <a href="{{ root }}japanese.html">日本人選手</a>
-    <a href="{{ root }}teams.html">チーム一覧</a>
-  </nav>
-  <p class="meta">{{ season }}年シーズン / 最終更新: {{ updated_at }}</p>
+  <div class="header-inner">
+    <div class="header-top">
+      <h1 class="site-title">
+        <a href="{{ root }}index.html"><span class="accent">⚾︎</span>MLB データ置き場</a>
+      </h1>
+      <p class="site-meta">{{ season }}年シーズン ／ 更新: {{ updated_at }}</p>
+    </div>
+    <nav class="main-nav">
+      <a href="{{ root }}index.html"     class="{{ 'is-active' if active == 'top' }}">トップ</a>
+      <a href="{{ root }}standings.html" class="{{ 'is-active' if active == 'standings' }}">順位表</a>
+      <a href="{{ root }}leaders.html"   class="{{ 'is-active' if active == 'leaders' }}">リーダーボード</a>
+      <a href="{{ root }}japanese.html"  class="{{ 'is-active' if active == 'japanese' }}">日本人選手</a>
+      <a href="{{ root }}teams.html"     class="{{ 'is-active' if active == 'teams' }}">チーム一覧</a>
+    </nav>
+  </div>
 </header>
 <main>
 {% block content %}{% endblock %}
 </main>
 <footer>
-  <p>データ提供: MLB Stats API</p>
+  <p>データ提供: <a href="https://statsapi.mlb.com/" target="_blank" rel="noopener">MLB Stats API</a> ／
+     <a href="https://github.com/tanakei73/mlb-site" target="_blank" rel="noopener">ソースコード</a></p>
 </footer>
 </body>
 </html>

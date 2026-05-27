@@ -1,128 +1,199 @@
-/* MLB データ置き場 - nf3 風シンプル表組み */
+/* MLB データ置き場 - nf3 寄りシンプルスタイル */
+
+:root {
+  --color-bg:        #ffffff;
+  --color-bg-alt:    #f7f7f5;
+  --color-text:      #222;
+  --color-text-sub:  #666;
+  --color-border:    #d8d8d4;
+  --color-border-strong: #b8b8b3;
+  --color-header:    #1c2b3a;
+  --color-accent:    #b8763d;     /* 薄いアンバー */
+  --color-accent-soft: #f0e5d4;
+  --color-win:       #1d6f5b;
+  --color-loss:      #a8423f;
+  --color-link:      #1c4a7a;
+  --font-jp: -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+             "Hiragino Kaku Gothic ProN", "Hiragino Sans",
+             "Yu Gothic", Meiryo, sans-serif;
+  --font-num: "SF Mono", Menlo, Consolas, monospace;
+}
 
 * { box-sizing: border-box; }
 
+html { background: var(--color-bg-alt); }
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+  font-family: var(--font-jp);
   font-size: 13px;
-  line-height: 1.5;
-  color: #222;
-  background: #fafafa;
+  line-height: 1.55;
+  color: var(--color-text);
+  background: var(--color-bg-alt);
   margin: 0;
   padding: 0;
 }
 
+/* ============ ヘッダー ============ */
 header {
-  background: #14213d;
+  background: var(--color-header);
   color: #fff;
-  padding: 12px 20px;
-  border-bottom: 3px solid #fca311;
+  padding: 0;
+  border-bottom: 1px solid var(--color-header);
 }
 
-header h1 {
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 14px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.site-title {
   margin: 0;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
-header h1 a {
+.site-title a {
   color: #fff;
   text-decoration: none;
 }
 
-header nav {
-  margin-top: 6px;
+.site-title .accent {
+  color: var(--color-accent);
+  margin-right: 4px;
 }
 
-header nav a {
-  color: #fca311;
-  margin-right: 14px;
-  text-decoration: none;
-  font-size: 13px;
-}
-
-header nav a:hover {
-  text-decoration: underline;
-}
-
-header .meta {
-  margin: 4px 0 0;
+.site-meta {
+  margin: 0;
   font-size: 11px;
-  color: #ccc;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: var(--font-num);
 }
 
+nav.main-nav {
+  display: flex;
+  gap: 0;
+  margin-top: 4px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+nav.main-nav a {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  font-size: 12px;
+  padding: 8px 14px;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+nav.main-nav a:hover {
+  color: #fff;
+}
+
+nav.main-nav a.is-active {
+  color: #fff;
+  border-bottom-color: var(--color-accent);
+  font-weight: 600;
+}
+
+/* ============ メイン ============ */
 main {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 22px 20px 40px;
+  background: var(--color-bg);
+  border-left: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+  min-height: calc(100vh - 200px);
 }
 
 section {
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
 
 h2 {
-  font-size: 16px;
-  border-left: 4px solid #fca311;
-  padding-left: 8px;
-  margin: 24px 0 12px;
+  font-size: 15px;
+  font-weight: 700;
+  border-left: 3px solid var(--color-accent);
+  padding: 2px 0 2px 10px;
+  margin: 18px 0 10px;
+  color: var(--color-header);
 }
 
 h3 {
-  font-size: 14px;
-  margin: 16px 0 8px;
-  color: #14213d;
+  font-size: 13.5px;
+  margin: 14px 0 7px;
+  color: var(--color-header);
+  font-weight: 700;
+}
+
+h3::before {
+  content: "▸ ";
+  color: var(--color-accent);
 }
 
 h4 {
-  font-size: 13px;
-  margin: 8px 0 4px;
-  color: #14213d;
+  font-size: 12.5px;
+  margin: 6px 0 4px;
+  color: var(--color-header);
 }
 
-/* ------ Tables ------ */
+a {
+  color: var(--color-link);
+}
+
+/* ============ テーブル ============ */
 .table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  margin-bottom: 8px;
-  /* スクロール影で「右にまだある」を示唆 */
+  margin-bottom: 6px;
   background:
     linear-gradient(to right, #fff 30%, rgba(255,255,255,0)),
-    linear-gradient(to right, rgba(0,0,0,0.08), rgba(255,255,255,0) 30%) 100% 0,
-    radial-gradient(farthest-side at 0 50%, rgba(0,0,0,0.12), rgba(0,0,0,0)),
-    radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,0.12), rgba(0,0,0,0)) 100% 0;
+    linear-gradient(to right, rgba(255,255,255,0), #fff 70%) 100% 0,
+    radial-gradient(farthest-side at 0 50%, rgba(0,0,0,0.08), rgba(0,0,0,0)),
+    radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,0.08), rgba(0,0,0,0)) 100% 0;
   background-repeat: no-repeat;
-  background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+  background-size: 30px 100%, 30px 100%, 10px 100%, 10px 100%;
   background-attachment: local, local, scroll, scroll;
 }
 
 table {
   border-collapse: collapse;
   width: 100%;
-  background: #fff;
+  background: var(--color-bg);
   font-size: 12px;
-  margin-bottom: 0;
 }
 
 table th, table td {
-  border: 1px solid #ddd;
+  border-bottom: 1px solid var(--color-border);
   padding: 4px 8px;
   text-align: center;
   white-space: nowrap;
 }
 
 table th {
-  background: #f0f0f0;
+  background: var(--color-bg-alt);
   font-weight: 600;
-  color: #333;
-}
-
-table tbody tr:nth-child(even) {
-  background: #f9f9f9;
+  color: #444;
+  border-bottom-color: var(--color-border-strong);
+  font-size: 11px;
+  padding: 6px 8px;
 }
 
 table tbody tr:hover {
-  background: #fff3d6;
+  background: var(--color-accent-soft);
 }
 
 td.team-cell {
@@ -131,187 +202,174 @@ td.team-cell {
 }
 
 td.team-cell.winner {
-  color: #c1121f;
+  color: var(--color-loss);
 }
+
+td.team-cell a {
+  color: var(--color-link);
+  text-decoration: none;
+}
+td.team-cell a:hover { text-decoration: underline; }
 
 td.score {
   font-weight: 700;
-  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-num);
 }
+
+td.score a {
+  color: var(--color-link);
+  text-decoration: none;
+}
+td.score a:hover { text-decoration: underline; }
 
 td.venue {
   text-align: left;
   font-size: 11px;
-  color: #666;
-  max-width: 140px;
+  color: var(--color-text-sub);
+  max-width: 130px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.streak-win { color: #2a9d8f; font-weight: 700; }
-.streak-loss { color: #c1121f; font-weight: 700; }
+.streak-win  { color: var(--color-win);  font-weight: 700; }
+.streak-loss { color: var(--color-loss); font-weight: 700; }
 
-/* ------ Standings grid ------ */
+/* ============ 順位表 ============ */
 .standings-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 
 .division {
-  background: #fff;
-  padding: 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
+  background: var(--color-bg);
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
 }
 
-/* ------ Games ------ */
-table.games.compact {
-  font-size: 11px;
-}
-
+/* ============ 試合・compact ============ */
+table.games.compact { font-size: 11px; }
 table.games.compact th,
-table.games.compact td {
-  padding: 3px 6px;
-}
+table.games.compact td { padding: 3px 6px; }
 
-/* ------ Footer ------ */
-footer {
-  border-top: 1px solid #ddd;
-  margin-top: 40px;
-  padding: 16px 20px;
-  text-align: center;
-  font-size: 11px;
-  color: #888;
-  background: #fff;
-}
-
-@media (max-width: 640px) {
-  main { padding: 10px; }
-  table { font-size: 11px; }
-  .standings-grid { grid-template-columns: 1fr; }
-}
-
-/* ------ Phase 2 additions ------ */
+/* ============ パンくず ============ */
 .breadcrumb {
-  font-size: 12px;
-  color: #666;
-  margin-bottom: 12px;
+  font-size: 11.5px;
+  color: var(--color-text-sub);
+  margin-bottom: 14px;
 }
-.breadcrumb a { color: #14213d; text-decoration: none; }
+.breadcrumb a { color: var(--color-link); text-decoration: none; }
 .breadcrumb a:hover { text-decoration: underline; }
 .breadcrumb span { color: #444; }
 
+/* ============ チームヘッダー/試合ヘッダー ============ */
 .team-header h2 small {
   font-weight: 400;
-  font-size: 12px;
-  color: #666;
+  font-size: 11.5px;
+  color: var(--color-text-sub);
   margin-left: 6px;
 }
+
 .team-header .team-meta,
 .game-header .team-meta {
   font-size: 12px;
-  color: #666;
-  margin: 4px 0 12px;
+  color: var(--color-text-sub);
+  margin: 4px 0 14px;
 }
 
 .score-big {
-  font-family: "SF Mono", Menlo, Consolas, monospace;
-  font-size: 26px;
+  font-family: var(--font-num);
+  font-size: 24px;
   font-weight: 700;
-  color: #14213d;
+  color: var(--color-header);
   margin: 0 8px;
 }
 
 .game-header h2 a {
-  color: #14213d;
+  color: var(--color-header);
   text-decoration: none;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
 }
 .game-header h2 a:hover { text-decoration: underline; }
 
-a.game-link, td.score a {
-  color: #14213d;
-  text-decoration: none;
-}
-td.score a:hover { text-decoration: underline; }
-
-table.linescore th, table.linescore td {
-  min-width: 28px;
-}
+table.linescore th, table.linescore td { min-width: 26px; }
 table.linescore th.team-cell {
   text-align: left;
-  background: #f0f0f0;
+  background: var(--color-bg-alt);
 }
 
 table.kv th {
-  background: #f0f0f0;
+  background: var(--color-bg-alt);
   text-align: left;
   width: 30%;
 }
-table.kv td {
-  text-align: left;
-}
+table.kv td { text-align: left; }
 
+/* ============ ロースター ============ */
 .roster-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 12px;
-}
-.roster-group {
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  padding: 8px;
-  border-radius: 4px;
-}
-.roster-group h4 {
-  margin: 0 0 6px;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 4px;
+  gap: 10px;
 }
 
+.roster-group {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  padding: 6px 8px;
+}
+
+.roster-group h4 {
+  margin: 0 0 4px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 3px;
+}
+
+/* ============ リーダーボード ============ */
 .leader-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
 }
+
 .leader-block {
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  padding: 8px 10px;
-  border-radius: 4px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  padding: 6px 10px;
 }
+
 .leader-block h5 {
-  margin: 0 0 6px;
-  font-size: 12px;
-  color: #14213d;
-  border-bottom: 1px solid #fca311;
-  padding-bottom: 3px;
+  margin: 0 0 4px;
+  font-size: 11.5px;
+  color: var(--color-header);
+  border-bottom: 1px solid var(--color-accent);
+  padding-bottom: 2px;
+  letter-spacing: 0.02em;
 }
 
 .tabs {
   display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 4px;
+  gap: 6px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 3px;
 }
+
 .tabs a.tab {
-  padding: 6px 12px;
-  background: #f0f0f0;
-  border-radius: 4px 4px 0 0;
-  color: #14213d;
+  padding: 5px 12px;
+  background: var(--color-bg-alt);
+  border: 1px solid var(--color-border);
+  border-bottom: none;
+  color: var(--color-header);
   text-decoration: none;
   font-size: 12px;
 }
-.tabs a.tab:hover {
-  background: #fca311;
-  color: #14213d;
-}
 
+.tabs a.tab:hover { background: var(--color-accent-soft); }
+
+/* ============ チーム一覧 ============ */
 .team-list {
   list-style: none;
   padding: 0;
@@ -319,85 +377,111 @@ table.kv td {
 }
 .team-list li {
   padding: 4px 0;
-  border-bottom: 1px dotted #ddd;
+  border-bottom: 1px dotted var(--color-border);
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
 }
 .team-list li a {
-  color: #14213d;
+  color: var(--color-link);
   text-decoration: none;
   font-weight: 600;
 }
 .team-list li a:hover { text-decoration: underline; }
 .team-list li .meta {
   font-size: 11px;
-  color: #666;
-  font-family: "SF Mono", Menlo, Consolas, monospace;
+  color: var(--color-text-sub);
+  font-family: var(--font-num);
 }
 
-td.team-cell a {
-  color: #14213d;
-  text-decoration: none;
-}
-td.team-cell a:hover { text-decoration: underline; }
-
-.meta-note {
-  font-size: 12px;
-  color: #666;
-  margin: 0 0 16px;
-}
-
-/* 選手名: 主日本語 + 副英語 */
+/* ============ 選手名 ============ */
 .player-ja {
   display: inline-block;
   font-weight: 700;
-  color: #14213d;
+  color: var(--color-header);
 }
 .player-en {
   display: block;
   font-size: 10px;
   font-weight: 400;
-  color: #888;
+  color: #999;
   margin-top: 1px;
-  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
 }
 
-/* 投手ページの選手名（大きく） */
 .player-ja-large {
   font-size: 22px;
   font-weight: 700;
-  color: #14213d;
+  color: var(--color-header);
 }
 .player-ja-large + .player-en {
   display: inline-block;
   font-size: 12px;
-  color: #666;
+  color: var(--color-text-sub);
   margin-left: 8px;
 }
 
-/* split blocks をグリッドで並べる */
+/* ============ 投手ページ split ============ */
 .split-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
+
 .split-block {
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  padding: 10px 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  padding: 8px 10px 4px;
   margin-bottom: 0;
 }
 .split-block h3 {
   margin-top: 0;
-  font-size: 13px;
-  border-bottom: 1px solid #fca311;
-  padding-bottom: 4px;
+  font-size: 12.5px;
+  border-bottom: 1px solid var(--color-accent);
+  padding-bottom: 3px;
 }
+.split-block h3::before { content: ""; }
 
 .venue-cell {
   text-align: left;
   font-size: 11px;
   color: #444;
+}
+
+/* ============ ノート文 ============ */
+.meta-note {
+  font-size: 11.5px;
+  color: var(--color-text-sub);
+  margin: 0 0 12px;
+}
+
+/* ============ フッター ============ */
+footer {
+  border-top: 1px solid var(--color-border);
+  padding: 14px 20px;
+  text-align: center;
+  font-size: 10.5px;
+  color: #888;
+  background: var(--color-bg);
+  max-width: 1200px;
+  margin: 0 auto;
+  border-left: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+}
+
+footer a {
+  color: var(--color-link);
+  text-decoration: none;
+}
+footer a:hover { text-decoration: underline; }
+
+/* ============ レスポンシブ ============ */
+@media (max-width: 700px) {
+  main { padding: 14px; border-left: none; border-right: none; }
+  footer { border-left: none; border-right: none; }
+  .header-inner { padding: 10px 12px 0; }
+  .site-title { font-size: 15px; }
+  nav.main-nav a { padding: 7px 10px; font-size: 11.5px; }
+  table { font-size: 11px; }
+  .standings-grid { grid-template-columns: 1fr; }
+  .split-grid { grid-template-columns: 1fr; }
 }
