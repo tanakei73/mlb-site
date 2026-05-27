@@ -8,6 +8,7 @@
 {% if hitters %}
 <section>
   <h3>野手 ({{ hitters|length }}名)</h3>
+  <div class="table-wrap">
   <table>
     <thead>
       <tr>
@@ -42,12 +43,14 @@
     {% endfor %}
     </tbody>
   </table>
+  </div>
 </section>
 {% endif %}
 
 {% if pitchers %}
 <section>
   <h3>投手 ({{ pitchers|length }}名)</h3>
+  <div class="table-wrap">
   <table>
     <thead>
       <tr>
@@ -84,12 +87,14 @@
     {% endfor %}
     </tbody>
   </table>
+  </div>
 </section>
 {% endif %}
 
 {% if leader_appearances %}
 <section>
   <h3>リーダーボードでの順位</h3>
+  <div class="table-wrap">
   <table>
     <thead>
       <tr><th>選手</th><th>カテゴリ</th><th>スコープ</th><th>順位</th><th>値</th></tr>
@@ -109,6 +114,7 @@
     {% endfor %}
     </tbody>
   </table>
+  </div>
 </section>
 {% endif %}
 

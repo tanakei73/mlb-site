@@ -10,6 +10,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from db import connect
+from venue_master import venue_short
 
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
@@ -78,12 +79,14 @@ POSITION_GROUP_ORDER = [
 
 # -------- env --------
 def get_env() -> Environment:
-    return Environment(
+    env = Environment(
         loader=FileSystemLoader(str(TEMPLATES)),
         autoescape=select_autoescape(["html"]),
         trim_blocks=True,
         lstrip_blocks=True,
     )
+    env.filters["venue_short"] = venue_short
+    return env
 
 
 # -------- loaders --------
@@ -609,7 +612,8 @@ def load_pitcher_data(player_id: int, teams: dict) -> dict | None:
             d["er"] += er
 
         if g["venue"]:
-            d = venue_agg.setdefault(g["venue"], {"venue": g["venue"], "games": 0, "outs": 0, "k": 0, "bb": 0, "r": 0, "er": 0})
+            short = venue_short(g["venue"])
+            d = venue_agg.setdefault(short, {"venue": short, "venue_full": g["venue"], "games": 0, "outs": 0, "k": 0, "bb": 0, "r": 0, "er": 0})
             d["games"] += 1
             d["outs"] += outs
             d["k"] += k

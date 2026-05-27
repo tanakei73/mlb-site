@@ -15,13 +15,14 @@
     <a href="{{ root }}teams/{{ home.abbreviation|lower }}.html">{{ home.name_ja }}</a>
   </h2>
   <p class="team-meta">
-    {{ game.game_date }} ／ {{ game.venue }} ／ {{ game.detailed_state }}
+    {{ game.game_date }} ／ <span title="{{ game.venue }}">{{ game.venue | venue_short }}</span> ／ {{ game.detailed_state }}
   </p>
 </header>
 
 {% if linescore %}
 <section>
   <h3>ラインスコア</h3>
+  <div class="table-wrap">
   <table class="linescore">
     <thead>
       <tr>
@@ -51,12 +52,14 @@
       </tr>
     </tbody>
   </table>
+  </div>
 </section>
 {% endif %}
 
 {% if team_stats %}
 <section>
   <h3>チーム成績</h3>
+  <div class="table-wrap">
   <table>
     <thead>
       <tr>
@@ -77,6 +80,7 @@
     {% endfor %}
     </tbody>
   </table>
+  </div>
 </section>
 {% endif %}
 

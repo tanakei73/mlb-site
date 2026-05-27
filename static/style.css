@@ -81,12 +81,27 @@ h4 {
 }
 
 /* ------ Tables ------ */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 8px;
+  /* スクロール影で「右にまだある」を示唆 */
+  background:
+    linear-gradient(to right, #fff 30%, rgba(255,255,255,0)),
+    linear-gradient(to right, rgba(0,0,0,0.08), rgba(255,255,255,0) 30%) 100% 0,
+    radial-gradient(farthest-side at 0 50%, rgba(0,0,0,0.12), rgba(0,0,0,0)),
+    radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,0.12), rgba(0,0,0,0)) 100% 0;
+  background-repeat: no-repeat;
+  background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+
 table {
   border-collapse: collapse;
   width: 100%;
   background: #fff;
   font-size: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 
 table th, table td {
@@ -128,6 +143,10 @@ td.venue {
   text-align: left;
   font-size: 11px;
   color: #666;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .streak-win { color: #2a9d8f; font-weight: 700; }

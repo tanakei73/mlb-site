@@ -28,7 +28,7 @@
         </td>
         <td class="team-cell"><a href="{{ root }}teams/{{ g.home_abbr|lower }}.html">{{ g.home_name_ja }}</a></td>
         <td>{{ g.detailed_state }}</td>
-        <td class="venue">{{ g.venue }}</td>
+        <td class="venue" title="{{ g.venue }}">{{ g.venue | venue_short }}</td>
       </tr>
     {% endfor %}
     </tbody>

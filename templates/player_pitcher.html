@@ -26,6 +26,7 @@
 {% if season_stat %}
 <section>
   <h3>シーズン通算</h3>
+  <div class="table-wrap">
   <table>
     <thead>
       <tr>
@@ -58,12 +59,14 @@
       </tr>
     </tbody>
   </table>
+  </div>
 </section>
 {% endif %}
 
 {% if game_log %}
 <section>
   <h3>試合別成績 ({{ game_log|length }}登板)</h3>
+  <div class="table-wrap">
   <table>
     <thead>
       <tr>
@@ -79,7 +82,7 @@
         <td><a href="{{ root }}games/{{ g.game_pk }}.html">{{ g.game_date }}</a></td>
         <td class="team-cell">{{ g.opponent_ja }}</td>
         <td>{{ '本拠地' if g.is_home else 'ビジター' }}</td>
-        <td class="venue">{{ g.venue or '-' }}</td>
+        <td class="venue" title="{{ g.venue or '' }}">{{ g.venue | venue_short if g.venue else '-' }}</td>
         <td class="{{ 'streak-win' if g.is_win == 1 else 'streak-loss' if g.is_win == 0 else '' }}">
           {% if g.is_win == 1 %}勝{% elif g.is_win == 0 %}敗{% else %}-{% endif %}
         </td>
@@ -104,6 +107,7 @@
 {% if by_month %}
 <section class="split-block">
   <h3>月別</h3>
+  <div class="table-wrap">
   <table>
     <thead>
       <tr><th>月</th><th>登板</th><th>勝</th><th>敗</th><th>IP</th><th>K</th><th>BB</th><th>ERA</th><th>WHIP</th></tr>
@@ -130,6 +134,7 @@
 {% if home_away %}
 <section class="split-block">
   <h3>ホーム/ビジター別</h3>
+  <div class="table-wrap">
   <table>
     <thead>
       <tr><th>場所</th><th>登板</th><th>勝</th><th>敗</th><th>IP</th><th>K</th><th>BB</th><th>ERA</th><th>WHIP</th></tr>
@@ -150,12 +155,14 @@
     {% endfor %}
     </tbody>
   </table>
+  </div>
 </section>
 {% endif %}
 
 {% if vs_hand %}
 <section class="split-block">
   <h3>対左右打者</h3>
+  <div class="table-wrap">
   <table>
     <thead>
       <tr><th>対</th><th>打席</th><th>打数</th><th>被安</th><th>被本</th><th>K</th><th>BB</th><th>被打率</th><th>被OPS</th></tr>
@@ -176,12 +183,14 @@
     {% endfor %}
     </tbody>
   </table>
+  </div>
 </section>
 {% endif %}
 
 {% if by_opponent %}
 <section class="split-block">
   <h3>対チーム別</h3>
+  <div class="table-wrap">
   <table>
     <thead>
       <tr><th>相手</th><th>登板</th><th>IP</th><th>K</th><th>BB</th><th>R</th><th>ER</th><th>ERA</th></tr>
@@ -201,12 +210,14 @@
     {% endfor %}
     </tbody>
   </table>
+  </div>
 </section>
 {% endif %}
 
 {% if by_venue %}
 <section class="split-block">
   <h3>球場別</h3>
+  <div class="table-wrap">
   <table>
     <thead>
       <tr><th>球場</th><th>登板</th><th>IP</th><th>K</th><th>BB</th><th>R</th><th>ER</th><th>ERA</th></tr>
@@ -226,6 +237,7 @@
     {% endfor %}
     </tbody>
   </table>
+  </div>
 </section>
 {% endif %}
 
