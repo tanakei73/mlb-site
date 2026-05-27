@@ -297,6 +297,173 @@ def fetch_japanese_player_stats() -> None:
     print(f"[jp_stats] saved {saved} stat blocks for {len(rows)} players")
 
 
+def fetch_pitcher_detail(player_id: int) -> int:
+    """1投手の (gameLog, byMonth, homeAndAway, statSplits vl/vr) を取得して保存。
+    保存した行数を返す。"""
+    saved = 0
+
+    # --- gameLog ---
+    try:
+        data = _get(f"people/{player_id}/stats",
+                    stats="gameLog", group="pitching", season=SEASON)
+    except requests.HTTPError as e:
+        print(f"  WARN gameLog {player_id}: {e}", file=sys.stderr)
+        data = {}
+    splits = (data.get("stats") or [{}])[0].get("splits", [])
+    rows = []
+    for sp in splits:
+        game = sp.get("game") or {}
+        team = sp.get("team") or {}
+        opp = sp.get("opponent") or {}
+        rows.append((
+            player_id,
+            game.get("gamePk"),
+            SEASON,
+            "pitching",
+            sp.get("date"),
+            team.get("id"),
+            opp.get("id"),
+            1 if sp.get("isHome") else 0,
+            1 if sp.get("isWin") is True else (0 if sp.get("isWin") is False else -1),
+            json.dumps(sp.get("stat") or {}, ensure_ascii=False),
+        ))
+    if rows:
+        with connect() as conn:
+            conn.executemany(
+                """INSERT OR REPLACE INTO player_game_log
+                (player_id, game_pk, season, stat_group, game_date,
+                 team_id, opponent_id, is_home, is_win, stats_json)
+                VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                rows,
+            )
+            conn.commit()
+        saved += len(rows)
+
+    # --- splits (3種類) ---
+    split_specs = [
+        ("byMonth", "byMonth", None),
+        ("homeAndAway", "homeAndAway", None),
+        ("statSplits", "vsHand", "vl,vr"),
+    ]
+    split_rows = []
+    for stats_param, split_label, sit_codes in split_specs:
+        params = {"stats": stats_param, "group": "pitching", "season": SEASON}
+        if sit_codes:
+            params["sitCodes"] = sit_codes
+        try:
+            data = _get(f"people/{player_id}/stats", **params)
+        except requests.HTTPError as e:
+            print(f"  WARN {split_label} {player_id}: {e}", file=sys.stderr)
+            continue
+        for sp in (data.get("stats") or [{}])[0].get("splits", []):
+            # split_key の決定
+            if split_label == "byMonth":
+                key = str(sp.get("month"))
+            elif split_label == "homeAndAway":
+                key = "home" if sp.get("isHome") else "away"
+            elif split_label == "vsHand":
+                code = (sp.get("split") or {}).get("code")
+                # vl, vr
+                key = "vsLeft" if code == "vl" else ("vsRight" if code == "vr" else code or "?")
+            else:
+                key = "?"
+            split_rows.append((
+                player_id, SEASON, "pitching", split_label, key,
+                json.dumps(sp.get("stat") or {}, ensure_ascii=False),
+            ))
+    if split_rows:
+        with connect() as conn:
+            conn.executemany(
+                """INSERT OR REPLACE INTO player_split_stats
+                (player_id, season, stat_group, split_type, split_key, stats_json)
+                VALUES (?,?,?,?,?,?)""",
+                split_rows,
+            )
+            conn.commit()
+        saved += len(split_rows)
+
+    return saved
+
+
+def fetch_starting_pitchers() -> None:
+    """先発実績のある投手（gamesStarted >= 1）の詳細を全員取得する。
+
+    手順:
+      1. 全投手 (rosters で position_code='1'='P') のseason statsを取得（player_season_statsに保存）
+         - 既に取得済みの選手はそのまま使う
+      2. gamesStarted >= 1 のものをフィルタ
+      3. 各選手で fetch_pitcher_detail を呼ぶ
+    """
+    with connect() as conn:
+        pitcher_rows = conn.execute(
+            """SELECT DISTINCT p.player_id, p.full_name
+               FROM players p
+               JOIN rosters r ON p.player_id = r.player_id
+               WHERE r.position_code='1' AND r.season=?""",
+            (SEASON,),
+        ).fetchall()
+    print(f"[pitchers] {len(pitcher_rows)} pitchers on rosters")
+
+    # 1. 各投手のシーズン成績を取得 (既にあるならスキップ)
+    with connect() as conn:
+        existing = {r["player_id"] for r in conn.execute(
+            "SELECT player_id FROM player_season_stats WHERE stat_group='pitching' AND season=?",
+            (SEASON,)).fetchall()}
+
+    now = dt.datetime.now(JST).isoformat(timespec="seconds")
+    fetched_season = 0
+    for r in pitcher_rows:
+        pid = r["player_id"]
+        if pid in existing:
+            continue
+        try:
+            data = _get(f"people/{pid}/stats",
+                        stats="season", season=SEASON, group="pitching")
+        except requests.HTTPError:
+            continue
+        splits = (data.get("stats") or [{}])[0].get("splits", [])
+        if not splits:
+            continue
+        stat = splits[0].get("stat")
+        if not stat:
+            continue
+        with connect() as conn:
+            conn.execute(
+                """INSERT OR REPLACE INTO player_season_stats
+                (player_id, season, stat_group, stats_json, updated_at)
+                VALUES (?,?,?,?,?)""",
+                (pid, SEASON, "pitching", json.dumps(stat, ensure_ascii=False), now),
+            )
+            conn.commit()
+        fetched_season += 1
+    print(f"[pitchers] fetched season stats for {fetched_season} new pitchers")
+
+    # 2. gamesStarted>=1の投手だけ抽出
+    with connect() as conn:
+        starters = []
+        for r in conn.execute(
+            """SELECT p.player_id, p.full_name, ps.stats_json
+               FROM players p
+               JOIN player_season_stats ps ON p.player_id = ps.player_id
+               WHERE ps.stat_group='pitching' AND ps.season=?""",
+            (SEASON,),
+        ).fetchall():
+            try:
+                s = json.loads(r["stats_json"])
+            except json.JSONDecodeError:
+                continue
+            if (s.get("gamesStarted") or 0) >= 1:
+                starters.append((r["player_id"], r["full_name"]))
+    print(f"[pitchers] {len(starters)} starting pitchers (GS >= 1)")
+
+    # 3. 詳細取得
+    for i, (pid, name) in enumerate(starters, 1):
+        fetch_pitcher_detail(pid)
+        if i % 20 == 0:
+            print(f"  ...{i}/{len(starters)}")
+    print(f"[pitchers] detail fetched for {len(starters)} starters")
+
+
 def fetch_boxscore_for_game(game_pk: int) -> None:
     """1試合のボックススコア + ラインスコアを取得して保存。"""
     try:
@@ -374,8 +541,9 @@ def fetch_recent_boxscores(days_back: int = 3) -> None:
 def main() -> None:
     init_db()
     today = dt.datetime.now(JST).date()
-    # 直近7日 + 今後3日
-    start = (today - dt.timedelta(days=7)).isoformat()
+    # 今シーズン全体（3/15 開幕想定）から今後3日まで
+    # → 投手ページの「球場別」「対戦相手別」JOIN を満たすため
+    start = f"{SEASON}-03-15"
     end = (today + dt.timedelta(days=3)).isoformat()
 
     fetch_teams()
@@ -384,6 +552,7 @@ def main() -> None:
     fetch_rosters()
     fetch_leaders()
     fetch_japanese_player_stats()
+    fetch_starting_pitchers()
     fetch_recent_boxscores(days_back=3)
 
 

@@ -343,3 +343,42 @@ td.team-cell a:hover { text-decoration: underline; }
   margin-top: 1px;
   font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
 }
+
+/* 投手ページの選手名（大きく） */
+.player-ja-large {
+  font-size: 22px;
+  font-weight: 700;
+  color: #14213d;
+}
+.player-ja-large + .player-en {
+  display: inline-block;
+  font-size: 12px;
+  color: #666;
+  margin-left: 8px;
+}
+
+/* split blocks をグリッドで並べる */
+.split-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 16px;
+}
+.split-block {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin-bottom: 0;
+}
+.split-block h3 {
+  margin-top: 0;
+  font-size: 13px;
+  border-bottom: 1px solid #fca311;
+  padding-bottom: 4px;
+}
+
+.venue-cell {
+  text-align: left;
+  font-size: 11px;
+  color: #444;
+}

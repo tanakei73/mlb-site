@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}{{ name_main }} - 投手成績 {{ season }}年{% endblock %}
+{% block content %}
+
+<nav class="breadcrumb">
+  <a href="{{ root }}index.html">トップ</a> ›
+  <a href="{{ root }}teams/{{ team.abbreviation|lower }}.html">{{ team.name_ja }}</a> ›
+  <span>{{ name_main }}</span>
+</nav>
+
+<header class="team-header">
+  <h2>
+    {% if name_ja %}
+      <span class="player-ja-large">{{ name_ja }}</span>
+      <small class="player-en">{{ full_name }}</small>
+    {% else %}
+      {{ full_name }}
+    {% endif %}
+  </h2>
+  <p class="team-meta">
+    {{ team.name_ja }} ／ 投手
+    {% if jersey_number %}／ 背番号 {{ jersey_number }}{% endif %}
+  </p>
+</header>
+
+{% if season_stat %}
+<section>
+  <h3>シーズン通算</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>試合</th><th>先発</th><th>勝</th><th>敗</th><th>HLD</th><th>セーブ</th>
+        <th>投球回</th><th>奪三振</th><th>与四球</th><th>被安打</th><th>被本塁打</th>
+        <th>失点</th><th>自責点</th><th>防御率</th><th>WHIP</th>
+        <th>K/9</th><th>BB/9</th><th>K/BB</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>{{ season_stat.gamesPlayed or 0 }}</td>
+        <td>{{ season_stat.gamesStarted or 0 }}</td>
+        <td>{{ season_stat.wins or 0 }}</td>
+        <td>{{ season_stat.losses or 0 }}</td>
+        <td>{{ season_stat.holds or 0 }}</td>
+        <td>{{ season_stat.saves or 0 }}</td>
+        <td>{{ season_stat.inningsPitched or '-' }}</td>
+        <td>{{ season_stat.strikeOuts or 0 }}</td>
+        <td>{{ season_stat.baseOnBalls or 0 }}</td>
+        <td>{{ season_stat.hits or 0 }}</td>
+        <td>{{ season_stat.homeRuns or 0 }}</td>
+        <td>{{ season_stat.runs or 0 }}</td>
+        <td>{{ season_stat.earnedRuns or 0 }}</td>
+        <td class="score">{{ season_stat.era or '-' }}</td>
+        <td class="score">{{ season_stat.whip or '-' }}</td>
+        <td>{{ derived.k9 }}</td>
+        <td>{{ derived.bb9 }}</td>
+        <td>{{ derived.k_bb }}</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if game_log %}
+<section>
+  <h3>試合別成績 ({{ game_log|length }}登板)</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>日付</th><th>対戦</th><th>場所</th><th>球場</th><th>結果</th>
+        <th>投球回</th><th>被安</th><th>被本</th>
+        <th>失点</th><th>自責</th><th>奪三振</th><th>与四球</th>
+        <th>球数</th><th>ERA</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for g in game_log %}
+      <tr>
+        <td><a href="{{ root }}games/{{ g.game_pk }}.html">{{ g.game_date }}</a></td>
+        <td class="team-cell">{{ g.opponent_ja }}</td>
+        <td>{{ '本拠地' if g.is_home else 'ビジター' }}</td>
+        <td class="venue">{{ g.venue or '-' }}</td>
+        <td class="{{ 'streak-win' if g.is_win == 1 else 'streak-loss' if g.is_win == 0 else '' }}">
+          {% if g.is_win == 1 %}勝{% elif g.is_win == 0 %}敗{% else %}-{% endif %}
+        </td>
+        <td>{{ g.stat.inningsPitched }}</td>
+        <td>{{ g.stat.hits }}</td>
+        <td>{{ g.stat.homeRuns }}</td>
+        <td>{{ g.stat.runs }}</td>
+        <td>{{ g.stat.earnedRuns }}</td>
+        <td>{{ g.stat.strikeOuts }}</td>
+        <td>{{ g.stat.baseOnBalls }}</td>
+        <td>{{ g.stat.numberOfPitches or '-' }}</td>
+        <td class="score">{{ g.stat.era or '-' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<div class="split-grid">
+
+{% if by_month %}
+<section class="split-block">
+  <h3>月別</h3>
+  <table>
+    <thead>
+      <tr><th>月</th><th>登板</th><th>勝</th><th>敗</th><th>IP</th><th>K</th><th>BB</th><th>ERA</th><th>WHIP</th></tr>
+    </thead>
+    <tbody>
+    {% for s in by_month %}
+      <tr>
+        <td>{{ s.label }}月</td>
+        <td>{{ s.stat.gamesPlayed }}</td>
+        <td>{{ s.stat.wins }}</td>
+        <td>{{ s.stat.losses }}</td>
+        <td>{{ s.stat.inningsPitched }}</td>
+        <td>{{ s.stat.strikeOuts }}</td>
+        <td>{{ s.stat.baseOnBalls }}</td>
+        <td class="score">{{ s.stat.era }}</td>
+        <td class="score">{{ s.stat.whip }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if home_away %}
+<section class="split-block">
+  <h3>ホーム/ビジター別</h3>
+  <table>
+    <thead>
+      <tr><th>場所</th><th>登板</th><th>勝</th><th>敗</th><th>IP</th><th>K</th><th>BB</th><th>ERA</th><th>WHIP</th></tr>
+    </thead>
+    <tbody>
+    {% for s in home_away %}
+      <tr>
+        <td>{{ '本拠地' if s.key == 'home' else 'ビジター' }}</td>
+        <td>{{ s.stat.gamesPlayed }}</td>
+        <td>{{ s.stat.wins }}</td>
+        <td>{{ s.stat.losses }}</td>
+        <td>{{ s.stat.inningsPitched }}</td>
+        <td>{{ s.stat.strikeOuts }}</td>
+        <td>{{ s.stat.baseOnBalls }}</td>
+        <td class="score">{{ s.stat.era }}</td>
+        <td class="score">{{ s.stat.whip }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if vs_hand %}
+<section class="split-block">
+  <h3>対左右打者</h3>
+  <table>
+    <thead>
+      <tr><th>対</th><th>打席</th><th>打数</th><th>被安</th><th>被本</th><th>K</th><th>BB</th><th>被打率</th><th>被OPS</th></tr>
+    </thead>
+    <tbody>
+    {% for s in vs_hand %}
+      <tr>
+        <td>{{ '対左' if s.key == 'vsLeft' else '対右' }}打者</td>
+        <td>{{ s.stat.plateAppearances }}</td>
+        <td>{{ s.stat.atBats }}</td>
+        <td>{{ s.stat.hits }}</td>
+        <td>{{ s.stat.homeRuns }}</td>
+        <td>{{ s.stat.strikeOuts }}</td>
+        <td>{{ s.stat.baseOnBalls }}</td>
+        <td class="score">{{ s.stat.avg }}</td>
+        <td class="score">{{ s.stat.ops }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if by_opponent %}
+<section class="split-block">
+  <h3>対チーム別</h3>
+  <table>
+    <thead>
+      <tr><th>相手</th><th>登板</th><th>IP</th><th>K</th><th>BB</th><th>R</th><th>ER</th><th>ERA</th></tr>
+    </thead>
+    <tbody>
+    {% for s in by_opponent %}
+      <tr>
+        <td class="team-cell">{{ s.opponent_ja }}</td>
+        <td>{{ s.games }}</td>
+        <td>{{ "%.1f"|format(s.ip) }}</td>
+        <td>{{ s.k }}</td>
+        <td>{{ s.bb }}</td>
+        <td>{{ s.r }}</td>
+        <td>{{ s.er }}</td>
+        <td class="score">{{ s.era }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if by_venue %}
+<section class="split-block">
+  <h3>球場別</h3>
+  <table>
+    <thead>
+      <tr><th>球場</th><th>登板</th><th>IP</th><th>K</th><th>BB</th><th>R</th><th>ER</th><th>ERA</th></tr>
+    </thead>
+    <tbody>
+    {% for s in by_venue %}
+      <tr>
+        <td class="venue-cell">{{ s.venue }}</td>
+        <td>{{ s.games }}</td>
+        <td>{{ "%.1f"|format(s.ip) }}</td>
+        <td>{{ s.k }}</td>
+        <td>{{ s.bb }}</td>
+        <td>{{ s.r }}</td>
+        <td>{{ s.er }}</td>
+        <td class="score">{{ s.era }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+</div>
+
+{% endblock %}

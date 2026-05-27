@@ -26,11 +26,22 @@
           <tr>
             <td>{{ row.rank }}</td>
             <td class="team-cell">
-              {% if row.player_name_ja %}
-                <span class="player-ja">{{ row.player_name_ja }}</span>
-                <span class="player-en">{{ row.player_name }}</span>
+              {% if row.has_pitcher_page %}
+                <a href="{{ root }}players/pitchers/{{ row.player_id }}.html">
+                  {% if row.player_name_ja %}
+                    <span class="player-ja">{{ row.player_name_ja }}</span>
+                    <span class="player-en">{{ row.player_name }}</span>
+                  {% else %}
+                    {{ row.player_name }}
+                  {% endif %}
+                </a>
               {% else %}
-                {{ row.player_name }}
+                {% if row.player_name_ja %}
+                  <span class="player-ja">{{ row.player_name_ja }}</span>
+                  <span class="player-en">{{ row.player_name }}</span>
+                {% else %}
+                  {{ row.player_name }}
+                {% endif %}
               {% endif %}
             </td>
             <td>{{ row.team_abbr or '-' }}</td>
@@ -55,11 +66,22 @@
           <tr>
             <td>{{ row.rank }}</td>
             <td class="team-cell">
-              {% if row.player_name_ja %}
-                <span class="player-ja">{{ row.player_name_ja }}</span>
-                <span class="player-en">{{ row.player_name }}</span>
+              {% if row.has_pitcher_page %}
+                <a href="{{ root }}players/pitchers/{{ row.player_id }}.html">
+                  {% if row.player_name_ja %}
+                    <span class="player-ja">{{ row.player_name_ja }}</span>
+                    <span class="player-en">{{ row.player_name }}</span>
+                  {% else %}
+                    {{ row.player_name }}
+                  {% endif %}
+                </a>
               {% else %}
-                {{ row.player_name }}
+                {% if row.player_name_ja %}
+                  <span class="player-ja">{{ row.player_name_ja }}</span>
+                  <span class="player-en">{{ row.player_name }}</span>
+                {% else %}
+                  {{ row.player_name }}
+                {% endif %}
               {% endif %}
             </td>
             <td>{{ row.team_abbr or '-' }}</td>

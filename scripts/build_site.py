@@ -174,13 +174,18 @@ def load_games_for_team(team_id: int, today_iso: str) -> tuple[list[dict], list[
 def load_roster(team_id: int) -> list[dict]:
     sql = """
         SELECT r.jersey_number, r.position_abbr, r.position_name, r.status,
-               p.player_id, p.full_name, p.full_name_ja
+               p.player_id, p.full_name, p.full_name_ja,
+               EXISTS(
+                 SELECT 1 FROM player_game_log gl
+                 WHERE gl.player_id = p.player_id AND gl.season = ?
+                       AND gl.stat_group = 'pitching'
+               ) AS is_starter
         FROM rosters r JOIN players p ON r.player_id = p.player_id
         WHERE r.team_id = ? AND r.season = ?
         ORDER BY r.position_abbr, p.full_name
     """
     with connect() as conn:
-        return [dict(r) for r in conn.execute(sql, (team_id, SEASON))]
+        return [dict(r) for r in conn.execute(sql, (SEASON, team_id, SEASON))]
 
 
 def group_roster(roster: list[dict]) -> list[tuple[str, list[dict]]]:
@@ -200,7 +205,12 @@ def group_roster(roster: list[dict]) -> list[tuple[str, list[dict]]]:
 
 def load_leaders(scope_league_id: int) -> dict[str, list[dict]]:
     sql = """
-        SELECT l.*, t.abbreviation AS team_abbr
+        SELECT l.*, t.abbreviation AS team_abbr,
+               EXISTS(
+                 SELECT 1 FROM player_game_log gl
+                 WHERE gl.player_id = l.player_id AND gl.season = l.season
+                       AND gl.stat_group = 'pitching'
+               ) AS has_pitcher_page
         FROM leaders l LEFT JOIN teams t ON l.team_id = t.team_id
         WHERE l.season = ? AND l.league_id = ?
         ORDER BY l.category, l.rank
@@ -455,6 +465,208 @@ def load_japanese_player_stats() -> tuple[list[dict], list[dict], list[dict]]:
     return hitters, pitchers, leader_appearances
 
 
+def _safe_float(v, default=0.0):
+    try:
+        return float(v) if v not in (None, "", "-") else default
+    except (TypeError, ValueError):
+        return default
+
+
+def _ip_to_outs(ip_str: str | None) -> int:
+    """5.2 (= 5回2/3) → 17 outs に変換。"""
+    if not ip_str:
+        return 0
+    try:
+        whole, _, frac = str(ip_str).partition(".")
+        return int(whole) * 3 + int(frac or 0)
+    except ValueError:
+        return 0
+
+
+def _outs_to_ip(outs: int) -> float:
+    return outs // 3 + (outs % 3) * 0.1
+
+
+def _calc_era(er: int, outs: int) -> str:
+    if outs <= 0:
+        return "-"
+    return f"{(er * 27) / outs:.2f}"
+
+
+def load_pitcher_data(player_id: int, teams: dict) -> dict | None:
+    """1投手のページ用データを取得・集計して返す。"""
+    with connect() as conn:
+        player_row = conn.execute(
+            "SELECT player_id, full_name, full_name_ja, current_team_id FROM players WHERE player_id=?",
+            (player_id,),
+        ).fetchone()
+        if not player_row:
+            return None
+
+        season_row = conn.execute(
+            """SELECT stats_json FROM player_season_stats
+               WHERE player_id=? AND season=? AND stat_group='pitching'""",
+            (player_id, SEASON),
+        ).fetchone()
+
+        game_rows = conn.execute(
+            """SELECT g.*, gm.venue FROM player_game_log g
+               LEFT JOIN games gm ON g.game_pk = gm.game_pk
+               WHERE g.player_id=? AND g.season=? AND g.stat_group='pitching'
+               ORDER BY g.game_date""",
+            (player_id, SEASON),
+        ).fetchall()
+
+        split_rows = conn.execute(
+            """SELECT split_type, split_key, stats_json
+               FROM player_split_stats
+               WHERE player_id=? AND season=? AND stat_group='pitching'""",
+            (player_id, SEASON),
+        ).fetchall()
+
+        # roster info for jersey
+        roster_row = conn.execute(
+            """SELECT jersey_number FROM rosters
+               WHERE player_id=? AND season=?
+               LIMIT 1""",
+            (player_id, SEASON),
+        ).fetchone()
+
+    season_stat = json.loads(season_row["stats_json"]) if season_row else None
+
+    # 派生指標
+    derived = {"k9": "-", "bb9": "-", "k_bb": "-"}
+    if season_stat:
+        outs = _ip_to_outs(season_stat.get("inningsPitched"))
+        if outs > 0:
+            k = season_stat.get("strikeOuts") or 0
+            bb = season_stat.get("baseOnBalls") or 0
+            derived["k9"] = f"{(k * 27) / outs:.2f}"
+            derived["bb9"] = f"{(bb * 27) / outs:.2f}"
+            derived["k_bb"] = f"{(k / bb):.2f}" if bb > 0 else "∞"
+
+    # gameLog
+    game_log = []
+    for r in game_rows:
+        try:
+            stat = json.loads(r["stats_json"])
+        except json.JSONDecodeError:
+            stat = {}
+        opp = teams.get(r["opponent_id"])
+        game_log.append({
+            "game_pk": r["game_pk"],
+            "game_date": r["game_date"],
+            "is_home": r["is_home"],
+            "is_win": r["is_win"],
+            "opponent_ja": opp["name_ja"] if opp else "-",
+            "venue": r["venue"],
+            "stat": stat,
+        })
+
+    # splits 整理
+    by_month_raw: dict[str, dict] = {}
+    home_away_raw: dict[str, dict] = {}
+    vs_hand_raw: dict[str, dict] = {}
+    for r in split_rows:
+        try:
+            stat = json.loads(r["stats_json"])
+        except json.JSONDecodeError:
+            continue
+        if r["split_type"] == "byMonth":
+            by_month_raw[r["split_key"]] = stat
+        elif r["split_type"] == "homeAndAway":
+            home_away_raw[r["split_key"]] = stat
+        elif r["split_type"] == "vsHand":
+            vs_hand_raw[r["split_key"]] = stat
+
+    by_month = [
+        {"label": k, "stat": v}
+        for k, v in sorted(by_month_raw.items(), key=lambda x: int(x[0]) if x[0].isdigit() else 99)
+    ]
+    home_away = [{"key": k, "stat": home_away_raw[k]} for k in ("home", "away") if k in home_away_raw]
+    vs_hand = [{"key": k, "stat": vs_hand_raw[k]} for k in ("vsLeft", "vsRight") if k in vs_hand_raw]
+
+    # gameLog から対チーム・球場の集計を作る
+    opp_agg: dict[int, dict] = {}
+    venue_agg: dict[str, dict] = {}
+    for g in game_log:
+        s = g["stat"]
+        outs = _ip_to_outs(s.get("inningsPitched"))
+        er = s.get("earnedRuns") or 0
+        runs = s.get("runs") or 0
+        k = s.get("strikeOuts") or 0
+        bb = s.get("baseOnBalls") or 0
+
+        opp_id = next((k for k, v in teams.items() if v["name_ja"] == g["opponent_ja"]), None)
+        if g["opponent_ja"] != "-":
+            key = g["opponent_ja"]
+            d = opp_agg.setdefault(key, {"opponent_ja": key, "games": 0, "outs": 0, "k": 0, "bb": 0, "r": 0, "er": 0})
+            d["games"] += 1
+            d["outs"] += outs
+            d["k"] += k
+            d["bb"] += bb
+            d["r"] += runs
+            d["er"] += er
+
+        if g["venue"]:
+            d = venue_agg.setdefault(g["venue"], {"venue": g["venue"], "games": 0, "outs": 0, "k": 0, "bb": 0, "r": 0, "er": 0})
+            d["games"] += 1
+            d["outs"] += outs
+            d["k"] += k
+            d["bb"] += bb
+            d["r"] += runs
+            d["er"] += er
+
+    def finalize(d):
+        d["ip"] = _outs_to_ip(d["outs"])
+        d["era"] = _calc_era(d["er"], d["outs"])
+        return d
+
+    by_opponent = sorted([finalize(d) for d in opp_agg.values()],
+                         key=lambda x: x["games"], reverse=True)
+    by_venue = sorted([finalize(d) for d in venue_agg.values()],
+                      key=lambda x: x["games"], reverse=True)
+
+    team = teams.get(player_row["current_team_id"]) or {}
+    name_ja = player_row["full_name_ja"]
+    return {
+        "player_id": player_id,
+        "full_name": player_row["full_name"],
+        "name_ja": name_ja,
+        "name_main": name_ja or player_row["full_name"],
+        "team": team,
+        "jersey_number": (roster_row or {})["jersey_number"] if roster_row else None,
+        "season_stat": season_stat,
+        "derived": derived,
+        "game_log": game_log,
+        "by_month": by_month,
+        "home_away": home_away,
+        "vs_hand": vs_hand,
+        "by_opponent": by_opponent,
+        "by_venue": by_venue,
+    }
+
+
+def build_pitcher_pages(env, base_ctx, teams: dict) -> int:
+    """player_game_log にデータが入っている全投手のページを生成。"""
+    with connect() as conn:
+        rows = conn.execute(
+            """SELECT DISTINCT player_id FROM player_game_log
+               WHERE season=? AND stat_group='pitching'""",
+            (SEASON,),
+        ).fetchall()
+    count = 0
+    for r in rows:
+        data = load_pitcher_data(r["player_id"], teams)
+        if not data or not data["team"]:
+            continue
+        ctx = {**base_ctx, "root": "../", "season": SEASON, **data}
+        out = SITE / "players" / "pitchers" / f"{r['player_id']}.html"
+        render(env, "player_pitcher.html", ctx, out)
+        count += 1
+    return count
+
+
 def build_japanese_page(env, base_ctx) -> None:
     hitters, pitchers, leader_appearances = load_japanese_player_stats()
     ctx = {
@@ -522,6 +734,9 @@ def main() -> None:
     build_leaders_page(env, base_ctx)
     print("[build] japanese players")
     build_japanese_page(env, base_ctx)
+    print("[build] pitcher pages")
+    n = build_pitcher_pages(env, base_ctx, teams)
+    print(f"  → {n} pitcher pages")
 
     print(f"\nBuild complete. Output: {SITE}")
 

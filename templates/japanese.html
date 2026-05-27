@@ -62,8 +62,10 @@
     {% for p in pitchers %}
       <tr>
         <td class="team-cell">
-          <span class="player-ja">{{ p.name_ja }}</span>
-          <span class="player-en">{{ p.full_name }}</span>
+          <a href="{{ root }}players/pitchers/{{ p.player_id }}.html">
+            <span class="player-ja">{{ p.name_ja }}</span>
+            <span class="player-en">{{ p.full_name }}</span>
+          </a>
         </td>
         <td><a href="{{ root }}teams/{{ p.team_abbr|lower }}.html">{{ p.team_ja }}</a></td>
         <td>{{ p.stat.gamesPlayed or 0 }}</td>

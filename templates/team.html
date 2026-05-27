@@ -89,11 +89,22 @@
           <tr>
             <td>{{ p.jersey_number or '' }}</td>
             <td class="team-cell">
-              {% if p.full_name_ja %}
-                <span class="player-ja">{{ p.full_name_ja }}</span>
-                <span class="player-en">{{ p.full_name }}</span>
+              {% if p.is_starter %}
+                <a href="{{ root }}players/pitchers/{{ p.player_id }}.html">
+                  {% if p.full_name_ja %}
+                    <span class="player-ja">{{ p.full_name_ja }}</span>
+                    <span class="player-en">{{ p.full_name }}</span>
+                  {% else %}
+                    {{ p.full_name }}
+                  {% endif %}
+                </a>
               {% else %}
-                {{ p.full_name }}
+                {% if p.full_name_ja %}
+                  <span class="player-ja">{{ p.full_name_ja }}</span>
+                  <span class="player-en">{{ p.full_name }}</span>
+                {% else %}
+                  {{ p.full_name }}
+                {% endif %}
               {% endif %}
             </td>
             <td>{{ p.position_abbr }}</td>

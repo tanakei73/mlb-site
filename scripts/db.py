@@ -141,6 +141,35 @@ CREATE TABLE IF NOT EXISTS player_season_stats (
     PRIMARY KEY (player_id, season, stat_group),
     FOREIGN KEY (player_id) REFERENCES players(player_id)
 );
+
+CREATE TABLE IF NOT EXISTS player_game_log (
+    player_id      INTEGER,
+    game_pk        INTEGER,
+    season         INTEGER,
+    stat_group     TEXT,            -- 'pitching' / 'hitting'
+    game_date      TEXT,
+    team_id        INTEGER,
+    opponent_id    INTEGER,
+    is_home        INTEGER,         -- 0/1
+    is_win         INTEGER,         -- 0/1/-1(N/A)
+    stats_json     TEXT,
+    PRIMARY KEY (player_id, game_pk, stat_group)
+    -- games テーブルに無い試合（オープン戦・スプリングトレーニング等）も
+    -- 受け入れるためFK制約は付けない
+);
+
+CREATE TABLE IF NOT EXISTS player_split_stats (
+    player_id      INTEGER,
+    season         INTEGER,
+    stat_group     TEXT,            -- 'pitching' / 'hitting'
+    split_type     TEXT,            -- 'byMonth', 'homeAndAway', 'vsHand'
+    split_key      TEXT,            -- 月番号 / 'home'or'away' / 'vsLeft'or'vsRight'
+    stats_json     TEXT,
+    PRIMARY KEY (player_id, season, stat_group, split_type, split_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_game_log_player ON player_game_log(player_id, season);
+CREATE INDEX IF NOT EXISTS idx_split_player ON player_split_stats(player_id, season, stat_group);
 """
 
 
