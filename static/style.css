@@ -290,6 +290,13 @@ td.pred-cell .pred-sep { color: #ccc; margin: 0 2px; }
   background: var(--color-bg);
   padding: 10px 12px;
   border: 1px solid var(--color-border);
+  overflow-x: auto;          /* 内側のtableが狭い時に横スクロールできるよう保険 */
+  -webkit-overflow-scrolling: touch;
+}
+
+.division table th,
+.division table td {
+  padding: 4px 6px;          /* 順位表専用にやや詰める */
 }
 
 /* ============ 試合・compact ============ */
