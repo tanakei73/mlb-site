@@ -63,7 +63,7 @@
 
 {% if yesterday_games %}
 <section>
-  <h2>昨日〜本日早朝の試合 (予想 vs 実績)
+  <h2>直近・進行中の試合 (予想 vs 実績)
     {% if pred_summary %}
       <small class="pred-summary">的中率 {{ pred_summary.pct }}% ({{ pred_summary.correct }}/{{ pred_summary.total }} 確定分)</small>
     {% endif %}
@@ -132,7 +132,7 @@
     </tbody>
   </table>
   </div>
-  <p class="meta-note">※ 米国時間で前日のスケジュール（JSTで言うと今日深夜〜明朝の試合）。「○/×」は事前保存予想の判定、「参考」は事後再計算、「進行中」「未開始」は判定保留。</p>
+  <p class="meta-note">※ 直近に終了・進行中の試合を新しい順に表示。「○/×」は事前保存予想の判定、「参考」は事後再計算、「進行中」は判定保留。</p>
 </section>
 {% endif %}
 

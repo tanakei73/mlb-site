@@ -370,16 +370,29 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
             _attach_prediction(g, is_future=False)
         today_games.append(g)
 
-    # 「昨日の試合（米国時間 yesterday）」予想 vs 実績
-    # status は問わず取得 (Final / In Progress / Preview いずれも表示)
+    # 「直近・進行中の試合」予想 vs 実績
+    # 時差の罠を避けるため、game_date ではなく game_datetime(実時刻)ベースで
+    # 「直近に終了 or 進行中の試合」を新しい順に取得する。
+    sql = """
+        SELECT g.*,
+               ta.name_ja AS away_name_ja, ta.abbreviation AS away_abbr,
+               th.name_ja AS home_name_ja, th.abbreviation AS home_abbr
+        FROM games g
+        LEFT JOIN teams ta ON g.away_team_id = ta.team_id
+        LEFT JOIN teams th ON g.home_team_id = th.team_id
+        WHERE g.status IN ('Final', 'Live', 'In Progress')
+        ORDER BY g.game_datetime DESC
+        LIMIT 18
+    """
+    with connect() as conn:
+        recent_rows = [dict(r) for r in conn.execute(sql)]
+
     yesterday_games = []
-    for g in load_games(yesterday_iso):
+    for g in recent_rows:
         g["start_jst"] = to_jst_time(g["game_datetime"])
         is_final = g.get("status") == "Final"
         is_live = g.get("status") in ("Live", "In Progress")
-        # is_future ロジック: 未確定 (Final 以外) なら今後の動向も予想対象
         _attach_prediction(g, is_future=not is_final)
-        # 的中判定は Final のみ
         if is_final and g.get("pred") and g.get("away_score") is not None:
             home_won = g["home_score"] > g["away_score"]
             predicted_home = g["pred"]["home"] > g["pred"]["away"]
@@ -387,8 +400,6 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
         g["is_final"] = is_final
         g["is_live"] = is_live
         yesterday_games.append(g)
-    # 開始時刻順
-    yesterday_games.sort(key=lambda x: x.get("game_datetime") or "")
 
     # 的中率は Final のみで計算
     pred_summary = None
