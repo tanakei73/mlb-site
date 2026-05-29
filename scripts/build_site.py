@@ -358,16 +358,39 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
     today_iso = today.isoformat()
     yesterday_iso = (today - dt.timedelta(days=1)).isoformat()
 
-    # 「本日の試合」= 米国時間 today
+    # 「これから始まる試合」= 現在時刻以降の Preview 試合（JST 視点で時系列）
+    # 米国 officialDate 固定だと JST 今日のWestコースト試合などが漏れるため、
+    # 実時刻 (game_datetime) ベースで未来の試合を取る。
+    now_utc_iso = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    sql_upcoming = """
+        SELECT g.*,
+               ta.name_ja AS away_name_ja, ta.abbreviation AS away_abbr,
+               th.name_ja AS home_name_ja, th.abbreviation AS home_abbr
+        FROM games g
+        LEFT JOIN teams ta ON g.away_team_id = ta.team_id
+        LEFT JOIN teams th ON g.home_team_id = th.team_id
+        WHERE g.status IN ('Preview', 'Pre-Game', 'Scheduled', 'Warmup')
+          AND g.game_datetime IS NOT NULL
+          AND g.game_datetime >= ?
+        ORDER BY g.game_datetime
+        LIMIT 20
+    """
+    with connect() as conn:
+        upcoming_rows = [dict(r) for r in conn.execute(sql_upcoming, (now_utc_iso,))]
+
     today_games = []
-    for g in load_games(today_iso):
-        g["start_jst"] = to_jst_time(g["game_datetime"])
-        # 試合前 (Preview) のみ予想を出す
-        if g.get("status") in ("Preview", None) or g.get("away_score") is None:
-            _attach_prediction(g, is_future=True)
+    for g in upcoming_rows:
+        # 開始日時を JST で「5/30 14:10」のように表示
+        if g["game_datetime"]:
+            try:
+                d = dt.datetime.fromisoformat(g["game_datetime"].replace("Z", "+00:00"))
+                d_jst = d.astimezone(JST)
+                g["start_jst"] = d_jst.strftime("%m/%d %H:%M")
+            except Exception:
+                g["start_jst"] = to_jst_time(g["game_datetime"])
         else:
-            # 既に試合中/終了。保存済み予想があれば付ける
-            _attach_prediction(g, is_future=False)
+            g["start_jst"] = ""
+        _attach_prediction(g, is_future=True)
         today_games.append(g)
 
     # 「直近・進行中の試合」予想 vs 実績

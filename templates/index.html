@@ -3,19 +3,18 @@
 {% block content %}
 
 <section>
-  <h2>本日の試合 <small class="header-meta">米国時間 {{ today_label_us }} / {{ today_window_jst }}</small></h2>
+  <h2>これから始まる試合 <small class="header-meta">JST 時系列で直近 {{ today_games|length }} 試合</small></h2>
   {% if today_games %}
   <div class="table-wrap">
   <table class="games">
     <thead>
       <tr>
-        <th>開始 (JST)</th>
+        <th>JST 開始</th>
         <th>ビジター</th>
         <th>先発</th>
         <th>予想</th>
         <th>先発</th>
         <th>ホーム</th>
-        <th>スコア</th>
         <th>状況</th>
         <th>球場</th>
       </tr>
@@ -43,11 +42,6 @@
           {% else %}{{ g.home_pitcher or '未定' }}{% endif %}
         </td>
         <td class="team-cell"><a href="{{ root }}teams/{{ g.home_abbr|lower }}.html">{{ g.home_name_ja }}</a></td>
-        <td class="score">
-          {% if g.away_score is not none %}
-            <a href="{{ root }}games/{{ g.game_pk }}.html">{{ g.away_score }} - {{ g.home_score }}</a>
-          {% else %}-{% endif %}
-        </td>
         <td>{{ g.detailed_state }}</td>
         <td class="venue" title="{{ g.venue }}">{{ g.venue | venue_short }}</td>
       </tr>
