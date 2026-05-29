@@ -3,7 +3,7 @@
 {% block content %}
 
 <section>
-  <h2>本日の試合 ({{ today_label }})</h2>
+  <h2>本日の試合 <small class="header-meta">米国時間 {{ today_label_us }} / {{ today_window_jst }}</small></h2>
   {% if today_games %}
   <div class="table-wrap">
   <table class="games">

@@ -428,10 +428,13 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
             "games": games,
         })
 
+    jst_start = today  # 米国officialDateは JST だと当日深夜〜翌深夜
+    jst_end = today + dt.timedelta(days=1)
     render(env, "index.html", {
         **base_ctx,
         "active": "top",
-        "today_label": today.strftime("%Y年%m月%d日 (JST)"),
+        "today_label_us": today.strftime("%Y年%m月%d日"),
+        "today_window_jst": f"JST {jst_start.strftime('%m/%d')} 深夜 〜 {jst_end.strftime('%m/%d')} 夜",
         "today_games": today_games,
         "yesterday_games": yesterday_games,
         "pred_summary": pred_summary,
