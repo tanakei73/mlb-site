@@ -2,8 +2,13 @@ name: Daily fetch & deploy
 
 on:
   schedule:
-    # 毎日 04:00 UTC = 13:00 JST に実行（米国の試合がほぼ終わった後）
+    # 1日3回: JST 06:00 / 13:00 / 22:00
+    # 06:00 JST (21:00 UTC前日): 米国夜間試合 Final 反映
+    # 13:00 JST (04:00 UTC):     現状の主要更新（全試合終了後）
+    # 22:00 JST (13:00 UTC):     米国朝、当日デーゲームの先発確定を反映
+    - cron: "0 21 * * *"
     - cron: "0 4 * * *"
+    - cron: "0 13 * * *"
   workflow_dispatch: {}   # 手動実行も可
   push:
     branches: [main]
