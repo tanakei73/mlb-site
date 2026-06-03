@@ -328,7 +328,13 @@ def _load_prediction(game_pk: int) -> dict | None:
 
 
 def _attach_prediction(g: dict, is_future: bool) -> None:
-    """g に "pred" を付与。未来試合は計算&保存、過去試合は保存済みを取得（無ければ即時計算）。"""
+    """g に "pred" を付与。
+
+    - 試合前 (is_future=True): 保存済みあれば返す。無ければ計算して保存。
+      → 結果として「最初に予想された時点の値」で固定される。
+    - 試合中/終了 (is_future=False): 保存済みのみ返す。無ければ pred=None。
+      → 試合が始まってからは予想を再計算しない（凍結）。
+    """
     saved = _load_prediction(g["game_pk"])
     if saved:
         g["pred"] = {
@@ -338,18 +344,20 @@ def _attach_prediction(g: dict, is_future: bool) -> None:
             "is_pregame": True,
         }
         return
-    # 保存なし → 計算
+    if not is_future:
+        # 試合開始後で保存なし → 予想は無し (再計算しない)
+        g["pred"] = None
+        return
+    # 試合前で保存なし → 計算して保存
     try:
         p = predict(g)
+        _save_prediction(g["game_pk"], p.home_prob, p.away_prob)
         g["pred"] = {
             "home": p.home_prob,
             "away": p.away_prob,
             "predicted_at": None,
-            "is_pregame": False,  # 事後計算
+            "is_pregame": True,
         }
-        if is_future:
-            _save_prediction(g["game_pk"], p.home_prob, p.away_prob)
-            g["pred"]["is_pregame"] = True  # 今保存したので「事前」扱い
     except Exception:
         g["pred"] = None
 
