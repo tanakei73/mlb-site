@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from db import connect
+from venue_factor import venue_factor
 
 # MLB リーグ平均（暫定値・必要なら DB の team_season_stats 平均から計算）
 LEAGUE_AVG_ERA = 4.10
@@ -35,6 +36,9 @@ class PredictionInput:
     home_team_era: Optional[float]
     away_matchup_era: Optional[float]   # その先発の対home_team 過去ERA
     home_matchup_era: Optional[float]   # その先発の対away_team 過去ERA
+    venue_factor: float = 1.0           # 1.0=中立 / >1=打高 / <1=投高
+    away_last_ten: Optional[str] = None # "6-4" 形式
+    home_last_ten: Optional[str] = None
 
 
 @dataclass
@@ -86,6 +90,16 @@ def _load_team_stats(team_id: int, group: str) -> dict | None:
         return json.loads(row["stats_json"])
     except json.JSONDecodeError:
         return None
+
+
+def _load_last_ten(team_id: int) -> Optional[str]:
+    if not team_id:
+        return None
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT last_ten FROM standings WHERE team_id=?", (team_id,)
+        ).fetchone()
+    return row["last_ten"] if row else None
 
 
 def _load_matchup_era(pitcher_id: int, opponent_team_id: int) -> Optional[float]:
@@ -146,6 +160,9 @@ def build_input(game: dict) -> PredictionInput:
         home_team_era=_safe_float(home_pit.get("era")),
         away_matchup_era=away_matchup,
         home_matchup_era=home_matchup,
+        venue_factor=venue_factor(game.get("venue")),
+        away_last_ten=_load_last_ten(game.get("away_team_id")),
+        home_last_ten=_load_last_ten(game.get("home_team_id")),
     )
 
 
@@ -177,38 +194,62 @@ def predict(game: dict) -> Prediction:
             return 0.0
         return max(-3.0, min(3.0, (LEAGUE_AVG_ERA - era) * 1.5))
 
-    # 各サイドの「強さ」を集計
+    def momentum_factor(last_ten: Optional[str]) -> float:
+        """直近10戦の勝ち越し差を ±3pt の補正に変換。"""
+        if not last_ten or "-" not in last_ten:
+            return 0.0
+        try:
+            w, l = last_ten.split("-")
+            diff = int(w) - int(l)   # -10..+10
+        except ValueError:
+            return 0.0
+        return max(-3.0, min(3.0, diff * 0.6))
+
+    # 球場ファクター: 打高球場では投手効果を薄め、投高では強める
+    # venue_factor 1.30 (Coors) → pitcher_weight ≈ 0.77
+    # venue_factor 0.92 (Petco) → pitcher_weight ≈ 1.09
+    pitcher_weight = 1.0 / max(0.5, min(1.5, pin.venue_factor))
+
+    home_pitcher_pt = pitcher_factor(pin.home_pitcher_era, pin.home_pitcher_whip) * pitcher_weight
+    away_pitcher_pt = pitcher_factor(pin.away_pitcher_era, pin.away_pitcher_whip) * pitcher_weight
+    home_bat_pt = batting_factor(pin.home_team_ops)
+    away_bat_pt = batting_factor(pin.away_team_ops)
+    home_def_pt = defense_factor(pin.home_team_era)
+    away_def_pt = defense_factor(pin.away_team_era)
+    home_matchup_pt = matchup_factor(pin.home_matchup_era)
+    away_matchup_pt = matchup_factor(pin.away_matchup_era)
+    home_momentum_pt = momentum_factor(pin.home_last_ten)
+    away_momentum_pt = momentum_factor(pin.away_last_ten)
+
     home_strength = (
-        pitcher_factor(pin.home_pitcher_era, pin.home_pitcher_whip)
-        + batting_factor(pin.home_team_ops)
-        + defense_factor(pin.home_team_era)
-        + matchup_factor(pin.home_matchup_era)
-        + HOME_ADVANTAGE
+        home_pitcher_pt + home_bat_pt + home_def_pt
+        + home_matchup_pt + home_momentum_pt + HOME_ADVANTAGE
     )
     away_strength = (
-        pitcher_factor(pin.away_pitcher_era, pin.away_pitcher_whip)
-        + batting_factor(pin.away_team_ops)
-        + defense_factor(pin.away_team_era)
-        + matchup_factor(pin.away_matchup_era)
+        away_pitcher_pt + away_bat_pt + away_def_pt
+        + away_matchup_pt + away_momentum_pt
     )
 
     diff = home_strength - away_strength
-    # 差分を勝率に変換：±25pt 差で ±15% 動く感じ
     home_prob = 50 + diff * 0.6
     home_prob = max(20, min(80, home_prob))
     away_prob = 100 - home_prob
 
     components = {
-        "home_pitcher_pt": round(pitcher_factor(pin.home_pitcher_era, pin.home_pitcher_whip), 1),
-        "away_pitcher_pt": round(pitcher_factor(pin.away_pitcher_era, pin.away_pitcher_whip), 1),
-        "home_bat_pt":     round(batting_factor(pin.home_team_ops), 1),
-        "away_bat_pt":     round(batting_factor(pin.away_team_ops), 1),
-        "home_def_pt":     round(defense_factor(pin.home_team_era), 1),
-        "away_def_pt":     round(defense_factor(pin.away_team_era), 1),
-        "home_matchup_pt": round(matchup_factor(pin.home_matchup_era), 1),
-        "away_matchup_pt": round(matchup_factor(pin.away_matchup_era), 1),
-        "home_advantage":  HOME_ADVANTAGE,
-        "input":           pin,
+        "home_pitcher_pt":  round(home_pitcher_pt, 1),
+        "away_pitcher_pt":  round(away_pitcher_pt, 1),
+        "home_bat_pt":      round(home_bat_pt, 1),
+        "away_bat_pt":      round(away_bat_pt, 1),
+        "home_def_pt":      round(home_def_pt, 1),
+        "away_def_pt":      round(away_def_pt, 1),
+        "home_matchup_pt":  round(home_matchup_pt, 1),
+        "away_matchup_pt":  round(away_matchup_pt, 1),
+        "home_momentum_pt": round(home_momentum_pt, 1),
+        "away_momentum_pt": round(away_momentum_pt, 1),
+        "home_advantage":   HOME_ADVANTAGE,
+        "pitcher_weight":   round(pitcher_weight, 2),
+        "venue_factor":     pin.venue_factor,
+        "input":            pin,
     }
     return Prediction(
         home_prob=int(round(home_prob)),
