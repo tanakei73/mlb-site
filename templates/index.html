@@ -27,6 +27,7 @@
         <td class="pitcher-cell">
           {% if g.away_pitcher_id %}
             <a href="{{ root }}players/pitchers/{{ g.away_pitcher_id }}.html">{{ g.away_pitcher }}</a>
+            {% if g.away_form_badge and g.away_form_badge.kind != 'neutral' %}<span class="form-mini {{ g.away_form_badge.kind }}">{{ g.away_form_badge.label }}</span>{% endif %}
           {% else %}{{ g.away_pitcher or '未定' }}{% endif %}
         </td>
         <td class="pred-cell">
@@ -39,6 +40,7 @@
         <td class="pitcher-cell">
           {% if g.home_pitcher_id %}
             <a href="{{ root }}players/pitchers/{{ g.home_pitcher_id }}.html">{{ g.home_pitcher }}</a>
+            {% if g.home_form_badge and g.home_form_badge.kind != 'neutral' %}<span class="form-mini {{ g.home_form_badge.kind }}">{{ g.home_form_badge.label }}</span>{% endif %}
           {% else %}{{ g.home_pitcher or '未定' }}{% endif %}
         </td>
         <td class="team-cell"><a href="{{ root }}teams/{{ g.home_abbr|lower }}.html">{{ g.home_name_ja }}</a></td>
@@ -49,7 +51,7 @@
     </tbody>
   </table>
   </div>
-  <p class="meta-note">※「予想」は先発投手の成績・チーム打撃力・ホームアドバンテージ・対戦相手別実績から自前計算した目安スコアで、予測モデルではありません。</p>
+  <p class="meta-note">※「予想」は先発投手の成績・調子（登板時勝率/連勝）・チーム打撃力・ホーム/ビジター別実績・球場特性・直近の勢い・対戦相手別実績などから自前計算した目安スコアで、予測モデルではありません。投手名横の<span class="form-mini hot">連勝中</span>等は先発の調子。</p>
   {% else %}
     <p>本日開催予定の試合はありません。</p>
   {% endif %}
@@ -81,7 +83,7 @@
     {% for g in yesterday_games %}
       <tr class="{% if g.is_final and g.pred and g.pred.correct %}game-win{% elif g.is_final and g.pred %}game-loss{% else %}game-nd{% endif %}">
         <td>{{ g.start_jst }}</td>
-        <td class="team-cell {{ 'winner' if g.is_final and g.away_score > g.home_score else '' }}">
+        <td class="team-cell {{ 'winner' if g.is_final and g.away_score is not none and g.home_score is not none and g.away_score > g.home_score else '' }}">
           <a href="{{ root }}teams/{{ g.away_abbr|lower }}.html">{{ g.away_name_ja }}</a>
         </td>
         <td class="pitcher-cell">
@@ -101,7 +103,7 @@
             <a href="{{ root }}players/pitchers/{{ g.home_pitcher_id }}.html">{{ g.home_pitcher }}</a>
           {% else %}{{ g.home_pitcher or '-' }}{% endif %}
         </td>
-        <td class="team-cell {{ 'winner' if g.is_final and g.home_score > g.away_score else '' }}">
+        <td class="team-cell {{ 'winner' if g.is_final and g.away_score is not none and g.home_score is not none and g.home_score > g.away_score else '' }}">
           <a href="{{ root }}teams/{{ g.home_abbr|lower }}.html">{{ g.home_name_ja }}</a>
         </td>
         <td class="score">

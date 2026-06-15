@@ -11,6 +11,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from db import connect
 from predict import predict
+from signals import pitcher_form, pitcher_form_badge
 from venue_master import venue_short
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -399,6 +400,8 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
         else:
             g["start_jst"] = ""
         _attach_prediction(g, is_future=True)
+        g["away_form_badge"] = pitcher_form_badge(pitcher_form(g.get("away_pitcher_id")))
+        g["home_form_badge"] = pitcher_form_badge(pitcher_form(g.get("home_pitcher_id")))
         today_games.append(g)
 
     # 「直近・進行中の試合」予想 vs 実績
@@ -482,6 +485,64 @@ def build_teams_index(env, base_ctx, leagues) -> None:
     render(env, "teams_index.html", {**base_ctx, "active": "teams", "leagues": leagues}, SITE / "teams.html")
 
 
+SPLIT_LABELS = [
+    ("home",        "ホーム"),
+    ("away",        "ビジター"),
+    ("day",         "デーゲーム"),
+    ("night",       "ナイター"),
+    ("oneRun",      "1点差"),
+    ("extraInning", "延長戦"),
+    ("xWinLoss",    "期待勝率"),
+]
+
+
+def _pct_float(pct_str) -> float:
+    try:
+        return float(pct_str)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def load_team_splits(team_id: int) -> list[dict]:
+    with connect() as conn:
+        rows = {r["split_type"]: dict(r) for r in conn.execute(
+            "SELECT split_type, wins, losses, pct FROM team_splits WHERE team_id=? AND season=?",
+            (team_id, SEASON))}
+    out = []
+    for key, label in SPLIT_LABELS:
+        r = rows.get(key)
+        if not r:
+            continue
+        if (r["wins"] or 0) + (r["losses"] or 0) == 0:
+            continue  # 0試合の状況は非表示
+        pctf = _pct_float(r["pct"])
+        out.append({
+            "label": label,
+            "wins": r["wins"], "losses": r["losses"],
+            "pct": r["pct"],
+            # 勝率に応じた強弱 (5割基準)
+            "kind": "strong" if pctf >= 0.560 else ("weak" if pctf <= 0.440 else "even"),
+        })
+    return out
+
+
+def load_team_first_score(team_id: int) -> dict | None:
+    with connect() as conn:
+        r = conn.execute(
+            """SELECT scored_first_w sw, scored_first_l sl,
+                      allowed_first_w aw, allowed_first_l al
+               FROM team_first_score WHERE team_id=? AND season=?""",
+            (team_id, SEASON)).fetchone()
+    if not r:
+        return None
+    sw, sl, aw, al = r["sw"], r["sl"], r["aw"], r["al"]
+    def pack(w, l):
+        t = w + l
+        return {"w": w, "l": l, "pct": f".{int(w/t*1000):03d}" if t else "-",
+                "kind": "strong" if t and w/t >= 0.560 else ("weak" if t and w/t <= 0.440 else "even")}
+    return {"scored_first": pack(sw, sl), "allowed_first": pack(aw, al)}
+
+
 def build_team_pages(env, base_ctx, teams: dict, standings: dict, today) -> None:
     today_iso = today.isoformat()
     for team_id, team in teams.items():
@@ -493,6 +554,8 @@ def build_team_pages(env, base_ctx, teams: dict, standings: dict, today) -> None
             "root": "../",
             "team": team,
             "standing": standings.get(team_id, {}),
+            "splits": load_team_splits(team_id),
+            "first_score": load_team_first_score(team_id),
             "recent_games": recent,
             "upcoming_games": upcoming,
             "roster": roster,
@@ -807,6 +870,7 @@ def load_pitcher_data(player_id: int, teams: dict) -> dict | None:
 
     team = teams.get(player_row["current_team_id"]) or {}
     name_ja = player_row["full_name_ja"]
+    form = pitcher_form(player_id)
     return {
         "player_id": player_id,
         "full_name": player_row["full_name"],
@@ -816,6 +880,8 @@ def load_pitcher_data(player_id: int, teams: dict) -> dict | None:
         "jersey_number": (roster_row or {})["jersey_number"] if roster_row else None,
         "season_stat": season_stat,
         "derived": derived,
+        "form": form,
+        "form_badge": pitcher_form_badge(form),
         "game_log": game_log,
         "by_month": by_month,
         "home_away": home_away,

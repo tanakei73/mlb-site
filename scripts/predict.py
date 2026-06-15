@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from db import connect
+from signals import pitcher_form
 from venue_factor import venue_factor
 
 # MLB リーグ平均（暫定値・必要なら DB の team_season_stats 平均から計算）
@@ -39,6 +40,10 @@ class PredictionInput:
     venue_factor: float = 1.0           # 1.0=中立 / >1=打高 / <1=投高
     away_last_ten: Optional[str] = None # "6-4" 形式
     home_last_ten: Optional[str] = None
+    away_pitcher_winpct: Optional[float] = None  # 登板時チーム勝率
+    home_pitcher_winpct: Optional[float] = None
+    away_away_pct: Optional[float] = None        # ビジター時の勝率
+    home_home_pct: Optional[float] = None        # ホーム時の勝率
 
 
 @dataclass
@@ -102,6 +107,24 @@ def _load_last_ten(team_id: int) -> Optional[str]:
     return row["last_ten"] if row else None
 
 
+def _load_split_pct(team_id: int, split_type: str) -> Optional[float]:
+    """team_splits から home/away 勝率を取得。"""
+    if not team_id:
+        return None
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT pct FROM team_splits WHERE team_id=? AND split_type=?",
+            (team_id, split_type)).fetchone()
+    if not row:
+        return None
+    return _safe_float(row["pct"])
+
+
+def _pitcher_winpct(player_id: Optional[int]) -> Optional[float]:
+    form = pitcher_form(player_id) if player_id else None
+    return form["win_pct"] if form and form["gs"] >= 3 else None
+
+
 def _load_matchup_era(pitcher_id: int, opponent_team_id: int) -> Optional[float]:
     """その先発が opponent_team に対して過去登板した時の自責点合計/IP からERAを計算。"""
     if not pitcher_id or not opponent_team_id:
@@ -163,6 +186,10 @@ def build_input(game: dict) -> PredictionInput:
         venue_factor=venue_factor(game.get("venue")),
         away_last_ten=_load_last_ten(game.get("away_team_id")),
         home_last_ten=_load_last_ten(game.get("home_team_id")),
+        away_pitcher_winpct=_pitcher_winpct(game.get("away_pitcher_id")),
+        home_pitcher_winpct=_pitcher_winpct(game.get("home_pitcher_id")),
+        away_away_pct=_load_split_pct(game.get("away_team_id"), "away"),
+        home_home_pct=_load_split_pct(game.get("home_team_id"), "home"),
     )
 
 
@@ -205,6 +232,18 @@ def predict(game: dict) -> Prediction:
             return 0.0
         return max(-3.0, min(3.0, diff * 0.6))
 
+    def pitcher_form_factor(winpct: Optional[float]) -> float:
+        """登板時チーム勝率 (.500基準) を ±4pt に変換。「この投手なら勝てる」度。"""
+        if winpct is None:
+            return 0.0
+        return max(-4.0, min(4.0, (winpct - 0.5) * 16))
+
+    def home_split_factor(pct: Optional[float]) -> float:
+        """ホーム/ビジター別勝率 (.500基準) を ±4pt に変換。"""
+        if pct is None:
+            return 0.0
+        return max(-4.0, min(4.0, (pct - 0.5) * 14))
+
     # 球場ファクター: 打高球場では投手効果を薄め、投高では強める
     # venue_factor 1.30 (Coors) → pitcher_weight ≈ 0.77
     # venue_factor 0.92 (Petco) → pitcher_weight ≈ 1.09
@@ -220,14 +259,20 @@ def predict(game: dict) -> Prediction:
     away_matchup_pt = matchup_factor(pin.away_matchup_era)
     home_momentum_pt = momentum_factor(pin.home_last_ten)
     away_momentum_pt = momentum_factor(pin.away_last_ten)
+    home_form_pt = pitcher_form_factor(pin.home_pitcher_winpct)
+    away_form_pt = pitcher_form_factor(pin.away_pitcher_winpct)
+    home_split_pt = home_split_factor(pin.home_home_pct)   # ホームでの強さ
+    away_split_pt = home_split_factor(pin.away_away_pct)   # ビジターでの強さ
 
     home_strength = (
         home_pitcher_pt + home_bat_pt + home_def_pt
-        + home_matchup_pt + home_momentum_pt + HOME_ADVANTAGE
+        + home_matchup_pt + home_momentum_pt
+        + home_form_pt + home_split_pt + HOME_ADVANTAGE
     )
     away_strength = (
         away_pitcher_pt + away_bat_pt + away_def_pt
         + away_matchup_pt + away_momentum_pt
+        + away_form_pt + away_split_pt
     )
 
     diff = home_strength - away_strength
@@ -246,6 +291,10 @@ def predict(game: dict) -> Prediction:
         "away_matchup_pt":  round(away_matchup_pt, 1),
         "home_momentum_pt": round(home_momentum_pt, 1),
         "away_momentum_pt": round(away_momentum_pt, 1),
+        "home_form_pt":     round(home_form_pt, 1),
+        "away_form_pt":     round(away_form_pt, 1),
+        "home_split_pt":    round(home_split_pt, 1),
+        "away_split_pt":    round(away_split_pt, 1),
         "home_advantage":   HOME_ADVANTAGE,
         "pitcher_weight":   round(pitcher_weight, 2),
         "venue_factor":     pin.venue_factor,

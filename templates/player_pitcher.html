@@ -16,11 +16,23 @@
     {% else %}
       {{ full_name }}
     {% endif %}
+    {% if form_badge %}
+      <span class="form-badge {{ form_badge.kind }}">{{ form_badge.label }}</span>
+    {% endif %}
   </h2>
   <p class="team-meta">
     {{ team.name_ja }} ／ 投手
     {% if jersey_number %}／ 背番号 {{ jersey_number }}{% endif %}
   </p>
+  {% if form %}
+  <div class="form-summary">
+    <span class="form-stat"><b>登板時チーム成績</b> {{ form.wins }}勝{{ form.losses }}敗（勝率 .{{ '%03d'|format((form.win_pct*1000)|int) }}）</span>
+    <span class="form-last5">直近5登板:
+      {% for r in form.last5 %}<span class="dot {{ 'win' if r=='W' else 'loss' }}">{{ '勝' if r=='W' else '敗' }}</span>{% endfor %}
+      <small>（左が最新）</small>
+    </span>
+  </div>
+  {% endif %}
 </header>
 
 {% if season_stat %}

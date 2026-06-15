@@ -479,6 +479,93 @@ table.kv td { text-align: left; }
   margin-left: 8px;
 }
 
+/* 投手の調子バッジ */
+.form-badge {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 10px;
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.form-badge.hot     { background: #fbe4cc; color: #b5471a; }
+.form-badge.cold    { background: #e2ecf5; color: #3a6291; }
+.form-badge.neutral { background: var(--color-bg-alt); color: var(--color-text-sub); }
+
+/* インライン小バッジ (予想テーブル等) */
+.form-mini {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.form-mini.hot  { background: #fbe4cc; color: #b5471a; }
+.form-mini.cold { background: #e2ecf5; color: #3a6291; }
+
+.form-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--color-text);
+}
+.form-summary b { color: var(--color-header); font-weight: 700; }
+.form-last5 .dot {
+  display: inline-block;
+  width: 17px;
+  height: 17px;
+  line-height: 17px;
+  text-align: center;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 1px;
+}
+.form-last5 .dot.win  { background: var(--color-win); }
+.form-last5 .dot.loss { background: var(--color-loss); }
+.form-last5 small { color: var(--color-text-sub); }
+
+/* チーム状況別成績カード */
+.split-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.split-card {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 8px 6px;
+  text-align: center;
+  background: var(--color-bg);
+}
+.split-card.strong { border-color: #9ccab4; background: #eef7f1; }
+.split-card.weak   { border-color: #e0b4b0; background: #faf0ef; }
+.split-card-label {
+  font-size: 11px;
+  color: var(--color-text-sub);
+  margin-bottom: 3px;
+}
+.split-card-record {
+  font-family: var(--font-num);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-header);
+}
+.split-card.strong .split-card-record { color: #1d6f5b; }
+.split-card.weak   .split-card-record { color: #a8423f; }
+.split-card-pct {
+  font-family: var(--font-num);
+  font-size: 12px;
+  color: var(--color-text-sub);
+}
+
 /* ============ 投手ページ split ============ */
 .split-grid {
   display: grid;

@@ -74,6 +74,30 @@ CREATE TABLE IF NOT EXISTS game_predictions (
     away_prob      INTEGER
 );
 
+-- チームの状況別成績 (standings splitRecords / expectedRecords)
+CREATE TABLE IF NOT EXISTS team_splits (
+    team_id        INTEGER,
+    season         INTEGER,
+    split_type     TEXT,            -- 'home','away','day','night','oneRun','extraInning','xWinLoss' など
+    wins           INTEGER,
+    losses         INTEGER,
+    pct            TEXT,
+    updated_at     TEXT,
+    PRIMARY KEY (team_id, season, split_type)
+);
+
+-- チームの先制時/被先制時の成績 (linescore集計)
+CREATE TABLE IF NOT EXISTS team_first_score (
+    team_id        INTEGER,
+    season         INTEGER,
+    scored_first_w INTEGER,         -- 先制した試合の勝利数
+    scored_first_l INTEGER,
+    allowed_first_w INTEGER,        -- 先制された試合の勝利数
+    allowed_first_l INTEGER,
+    updated_at     TEXT,
+    PRIMARY KEY (team_id, season)
+);
+
 CREATE INDEX IF NOT EXISTS idx_games_date ON games(game_date);
 CREATE INDEX IF NOT EXISTS idx_games_teams ON games(away_team_id, home_team_id);
 

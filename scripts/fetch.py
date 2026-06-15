@@ -65,8 +65,12 @@ def fetch_standings() -> None:
     )
     now = dt.datetime.now(JST).isoformat(timespec="seconds")
     rows = []
+    split_rows = []
+    # 保存する状況別タイプ (splitRecords + expectedRecords)
+    want_splits = {"home", "away", "day", "night", "oneRun", "extraInning", "lastTen"}
     for rec in data["records"]:
         for tr in rec["teamRecords"]:
+            team_id = tr["team"]["id"]
             rd = None
             if "runDifferential" in tr:
                 rd = tr["runDifferential"]
@@ -78,7 +82,7 @@ def fetch_standings() -> None:
             streak = tr.get("streak", {}).get("streakCode")
             rows.append(
                 (
-                    tr["team"]["id"],
+                    team_id,
                     SEASON,
                     tr.get("wins"),
                     tr.get("losses"),
@@ -92,6 +96,15 @@ def fetch_standings() -> None:
                     now,
                 )
             )
+            # 状況別成績
+            for s in records_split:
+                if s.get("type") in want_splits:
+                    split_rows.append((team_id, SEASON, s["type"],
+                                       s.get("wins"), s.get("losses"), s.get("pct"), now))
+            for s in tr.get("records", {}).get("expectedRecords", []):
+                if s.get("type") == "xWinLoss":
+                    split_rows.append((team_id, SEASON, "xWinLoss",
+                                       s.get("wins"), s.get("losses"), s.get("pct"), now))
     with connect() as conn:
         conn.executemany(
             """INSERT OR REPLACE INTO standings
@@ -100,8 +113,14 @@ def fetch_standings() -> None:
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
             rows,
         )
+        conn.executemany(
+            """INSERT OR REPLACE INTO team_splits
+            (team_id, season, split_type, wins, losses, pct, updated_at)
+            VALUES (?,?,?,?,?,?,?)""",
+            split_rows,
+        )
         conn.commit()
-    print(f"[standings] upserted {len(rows)} rows")
+    print(f"[standings] upserted {len(rows)} rows, {len(split_rows)} splits")
 
 
 def fetch_schedule(start: str, end: str) -> None:
@@ -298,6 +317,68 @@ def fetch_japanese_player_stats() -> None:
                 conn.commit()
             saved += 1
     print(f"[jp_stats] saved {saved} stat blocks for {len(rows)} players")
+
+
+def fetch_first_score() -> None:
+    """シーズン全試合の linescore から先制時/被先制時の勝敗をチーム別集計。"""
+    start = f"{SEASON}-03-15"
+    today = dt.datetime.now(JST).date().isoformat()
+    data = _get("schedule", sportId=1, startDate=start, endDate=today,
+                hydrate="linescore")
+    # team_id -> [scored_first_w, scored_first_l, allowed_first_w, allowed_first_l]
+    agg: dict[int, list[int]] = {}
+
+    def slot(tid: int) -> list[int]:
+        return agg.setdefault(tid, [0, 0, 0, 0])
+
+    for date_block in data.get("dates", []):
+        for g in date_block.get("games", []):
+            if g.get("status", {}).get("abstractGameState") != "Final":
+                continue
+            ls = g.get("linescore") or {}
+            innings = ls.get("innings") or []
+            away_id = g["teams"]["away"]["team"]["id"]
+            home_id = g["teams"]["home"]["team"]["id"]
+            away_final = (ls.get("teams", {}).get("away", {}) or {}).get("runs")
+            home_final = (ls.get("teams", {}).get("home", {}) or {}).get("runs")
+            if away_final is None or home_final is None:
+                continue
+            # 先制チームを判定
+            first = None
+            for inn in innings:
+                a = (inn.get("away", {}) or {}).get("runs", 0) or 0
+                h = (inn.get("home", {}) or {}).get("runs", 0) or 0
+                if a > 0 and h > 0:
+                    # 同一イニングで両軍得点（表が先）→ away先制
+                    first = "away"; break
+                if a > 0:
+                    first = "away"; break
+                if h > 0:
+                    first = "home"; break
+            if first is None:
+                continue  # 0-0 など先制なし
+            away_won = away_final > home_final
+            home_won = home_final > away_final
+            if first == "away":
+                # away が先制
+                a = slot(away_id); a[0 if away_won else 1] += 1
+                h = slot(home_id); h[2 if home_won else 3] += 1
+            else:
+                h = slot(home_id); h[0 if home_won else 1] += 1
+                a = slot(away_id); a[2 if away_won else 3] += 1
+
+    now = dt.datetime.now(JST).isoformat(timespec="seconds")
+    out = [(tid, SEASON, v[0], v[1], v[2], v[3], now) for tid, v in agg.items()]
+    with connect() as conn:
+        conn.executemany(
+            """INSERT OR REPLACE INTO team_first_score
+            (team_id, season, scored_first_w, scored_first_l,
+             allowed_first_w, allowed_first_l, updated_at)
+            VALUES (?,?,?,?,?,?,?)""",
+            out,
+        )
+        conn.commit()
+    print(f"[first_score] aggregated {len(out)} teams")
 
 
 def fetch_team_season_stats() -> None:
@@ -595,6 +676,7 @@ def main() -> None:
     fetch_schedule(start, end)
     fetch_rosters()
     fetch_team_season_stats()
+    fetch_first_score()
     fetch_leaders()
     fetch_japanese_player_stats()
     fetch_starting_pitchers()
