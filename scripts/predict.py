@@ -1,12 +1,18 @@
 """試合のホーム勝率予想ロジック。
 
-「予測モデル」ではなく、複数指標を線形合成した「目安スコア」。
-- 先発投手の質 (ERA, WHIP) vs リーグ平均
-- チーム打撃力 (OPS) vs リーグ平均
-- チーム投球力 (ERA) vs リーグ平均
-- 先発のその相手チームに対する過去実績
-- ホームアドバンテージ (+4pt 固定)
-- 最終的に 20-80% の範囲にクランプ
+「予測モデル」ではなく、複数指標を合成した「目安スコア」。
+
+ベース確率 (骨格):
+- チームのシーズン勝率 (実際 + ピタゴラス期待の50:50ブレンド) を
+  Bill James の Log5 式で対戦確率化。例: .620 vs .400 → 71%
+
+補正 (ベースに上乗せ):
+- 先発投手の質 (ERA, WHIP) vs リーグ平均 (球場ファクターで重み調整)
+- 先発の調子 (登板時チーム勝率) ±4pt
+- チーム打撃力/投球力 (Log5と重複するため半減) ±2.5pt
+- ホーム/ビジター別勝率 ±4pt / 直近10戦の勢い ±3pt
+- 先発の対戦相手別実績 ±3pt / ホームアドバンテージ +4pt
+- 最終的に 15-85% の範囲にクランプ
 """
 from __future__ import annotations
 
@@ -44,6 +50,8 @@ class PredictionInput:
     home_pitcher_winpct: Optional[float] = None
     away_away_pct: Optional[float] = None        # ビジター時の勝率
     home_home_pct: Optional[float] = None        # ホーム時の勝率
+    away_team_winpct: Optional[float] = None     # シーズン勝率 (実際+期待のブレンド)
+    home_team_winpct: Optional[float] = None
 
 
 @dataclass
@@ -125,6 +133,35 @@ def _pitcher_winpct(player_id: Optional[int]) -> Optional[float]:
     return form["win_pct"] if form and form["gs"] >= 3 else None
 
 
+def _load_team_winpct_blend(team_id: Optional[int]) -> Optional[float]:
+    """チームのシーズン勝率。実際の勝率とピタゴラス期待勝率を50:50でブレンド。
+
+    期待勝率(得失点ベース)の方が将来予測力が高いとされるため、
+    運で勝ちすぎ/負けすぎているチームの数字を補正する。
+    """
+    if not team_id:
+        return None
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT pct FROM standings WHERE team_id=?", (team_id,)).fetchone()
+        xrow = conn.execute(
+            "SELECT pct FROM team_splits WHERE team_id=? AND split_type='xWinLoss'",
+            (team_id,)).fetchone()
+    actual = _safe_float(row["pct"]) if row else None
+    expected = _safe_float(xrow["pct"]) if xrow else None
+    if actual is not None and expected is not None:
+        return (actual + expected) / 2
+    return actual if actual is not None else expected
+
+
+def log5(pa: float, pb: float) -> float:
+    """Bill James の Log5: 勝率paのチームが勝率pbのチームに勝つ確率。"""
+    denom = pa + pb - 2 * pa * pb
+    if denom <= 0:
+        return 0.5
+    return (pa - pa * pb) / denom
+
+
 def _load_matchup_era(pitcher_id: int, opponent_team_id: int) -> Optional[float]:
     """その先発が opponent_team に対して過去登板した時の自責点合計/IP からERAを計算。"""
     if not pitcher_id or not opponent_team_id:
@@ -190,6 +227,8 @@ def build_input(game: dict) -> PredictionInput:
         home_pitcher_winpct=_pitcher_winpct(game.get("home_pitcher_id")),
         away_away_pct=_load_split_pct(game.get("away_team_id"), "away"),
         home_home_pct=_load_split_pct(game.get("home_team_id"), "home"),
+        away_team_winpct=_load_team_winpct_blend(game.get("away_team_id")),
+        home_team_winpct=_load_team_winpct_blend(game.get("home_team_id")),
     )
 
 
@@ -251,10 +290,11 @@ def predict(game: dict) -> Prediction:
 
     home_pitcher_pt = pitcher_factor(pin.home_pitcher_era, pin.home_pitcher_whip) * pitcher_weight
     away_pitcher_pt = pitcher_factor(pin.away_pitcher_era, pin.away_pitcher_whip) * pitcher_weight
-    home_bat_pt = batting_factor(pin.home_team_ops)
-    away_bat_pt = batting_factor(pin.away_team_ops)
-    home_def_pt = defense_factor(pin.home_team_era)
-    away_def_pt = defense_factor(pin.away_team_era)
+    # チーム力 (OPS/防御率) はシーズン勝率 Log5 と重複するため半減して残す
+    home_bat_pt = batting_factor(pin.home_team_ops) * 0.5
+    away_bat_pt = batting_factor(pin.away_team_ops) * 0.5
+    home_def_pt = defense_factor(pin.home_team_era) * 0.5
+    away_def_pt = defense_factor(pin.away_team_era) * 0.5
     home_matchup_pt = matchup_factor(pin.home_matchup_era)
     away_matchup_pt = matchup_factor(pin.away_matchup_era)
     home_momentum_pt = momentum_factor(pin.home_last_ten)
@@ -263,6 +303,13 @@ def predict(game: dict) -> Prediction:
     away_form_pt = pitcher_form_factor(pin.away_pitcher_winpct)
     home_split_pt = home_split_factor(pin.home_home_pct)   # ホームでの強さ
     away_split_pt = home_split_factor(pin.away_away_pct)   # ビジターでの強さ
+
+    # === ベース確率: シーズン勝率 (実際+ピタゴラス期待のブレンド) の Log5 ===
+    # 「勝率.620 vs .400 なら素で 71%」というチーム力の骨格をここで反映する
+    if pin.home_team_winpct is not None and pin.away_team_winpct is not None:
+        base_prob = log5(pin.home_team_winpct, pin.away_team_winpct) * 100
+    else:
+        base_prob = 50.0
 
     home_strength = (
         home_pitcher_pt + home_bat_pt + home_def_pt
@@ -276,11 +323,14 @@ def predict(game: dict) -> Prediction:
     )
 
     diff = home_strength - away_strength
-    home_prob = 50 + diff * 0.6
-    home_prob = max(20, min(80, home_prob))
+    home_prob = base_prob + diff * 0.6
+    home_prob = max(15, min(85, home_prob))
     away_prob = 100 - home_prob
 
     components = {
+        "base_prob":        round(base_prob, 1),
+        "home_team_winpct": pin.home_team_winpct,
+        "away_team_winpct": pin.away_team_winpct,
         "home_pitcher_pt":  round(home_pitcher_pt, 1),
         "away_pitcher_pt":  round(away_pitcher_pt, 1),
         "home_bat_pt":      round(home_bat_pt, 1),
