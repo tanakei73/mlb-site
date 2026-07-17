@@ -370,7 +370,12 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
     # 「これから始まる試合」= 現在時刻以降の Preview 試合（JST 視点で時系列）
     # 米国 officialDate 固定だと JST 今日のWestコースト試合などが漏れるため、
     # 実時刻 (game_datetime) ベースで未来の試合を取る。
-    now_utc_iso = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = dt.datetime.now(dt.timezone.utc)
+    now_utc_iso = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    # 未開始判定はスコアでは不可（Warmup/Pre-Game も 0-0 で来る）ので
+    # detailed_state で「まだ投球が始まっていない」試合を拾う。
+    # 予定時刻を少し過ぎた Warmup も拾うため、下限は now-3h。
+    upcoming_lower = (now - dt.timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%SZ")
     sql_upcoming = """
         SELECT g.*,
                ta.name_ja AS away_name_ja, ta.abbreviation AS away_abbr,
@@ -378,14 +383,15 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
         FROM games g
         LEFT JOIN teams ta ON g.away_team_id = ta.team_id
         LEFT JOIN teams th ON g.home_team_id = th.team_id
-        WHERE g.status IN ('Preview', 'Pre-Game', 'Scheduled', 'Warmup')
+        WHERE g.detailed_state IN
+              ('Scheduled', 'Pre-Game', 'Warmup', 'Delayed Start', 'Delayed')
           AND g.game_datetime IS NOT NULL
           AND g.game_datetime >= ?
         ORDER BY g.game_datetime
         LIMIT 20
     """
     with connect() as conn:
-        upcoming_rows = [dict(r) for r in conn.execute(sql_upcoming, (now_utc_iso,))]
+        upcoming_rows = [dict(r) for r in conn.execute(sql_upcoming, (upcoming_lower,))]
 
     today_games = []
     for g in upcoming_rows:
@@ -406,7 +412,9 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
 
     # 「直近・進行中の試合」予想 vs 実績
     # 時差の罠を避けるため、game_date ではなく game_datetime(実時刻)ベースで
-    # 「直近に終了 or 進行中の試合」を新しい順に取得する。
+    # 「直近に終了 or 実際にプレー中の試合」を新しい順に取得する。
+    # Warmup/Pre-Game は 0-0 で来るが未開始なのでここには含めない
+    # (detailed_state='In Progress' の実プレー中と Final のみ)。
     sql = """
         SELECT g.*,
                ta.name_ja AS away_name_ja, ta.abbreviation AS away_abbr,
@@ -414,7 +422,7 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
         FROM games g
         LEFT JOIN teams ta ON g.away_team_id = ta.team_id
         LEFT JOIN teams th ON g.home_team_id = th.team_id
-        WHERE g.status IN ('Final', 'Live', 'In Progress')
+        WHERE g.status = 'Final' OR g.detailed_state = 'In Progress'
         ORDER BY g.game_datetime DESC
         LIMIT 18
     """
@@ -425,7 +433,7 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
     for g in recent_rows:
         g["start_jst"] = to_jst_time(g["game_datetime"])
         is_final = g.get("status") == "Final"
-        is_live = g.get("status") in ("Live", "In Progress")
+        is_live = g.get("detailed_state") == "In Progress"
         _attach_prediction(g, is_future=not is_final)
         if is_final and g.get("pred") and g.get("away_score") is not None:
             home_won = g["home_score"] > g["away_score"]
