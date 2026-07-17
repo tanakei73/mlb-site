@@ -538,6 +538,17 @@ table.kv td { text-align: left; }
   gap: 8px;
   margin-bottom: 8px;
 }
+
+/* 投手ランキングの3カラム */
+.rank-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+.rank-col h3 small { font-weight: 400; }
+@media (max-width: 640px) {
+  .rank-columns { grid-template-columns: 1fr; }
+}
 .split-card {
   border: 1px solid var(--color-border);
   border-radius: 6px;

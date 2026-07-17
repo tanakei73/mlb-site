@@ -92,3 +92,87 @@ def pitcher_form_badge(form: Optional[dict]) -> Optional[dict]:
         if form["win_pct"] <= 0.35:
             return {"label": f"登板時勝率.{int(form['win_pct']*1000):03d}", "kind": "cold"}
     return {"label": f"{form['wins']}勝{form['losses']}敗", "kind": "neutral"}
+
+
+def _ip_to_outs(ip) -> int:
+    if ip is None:
+        return 0
+    whole, _, frac = str(ip).partition(".")
+    try:
+        return int(whole) * 3 + int(frac or 0)
+    except ValueError:
+        return 0
+
+
+def starter_ranking(season: int, min_starts: int = 6) -> list[dict]:
+    """先発投手の「実力（防御率・QS率）」と「結果（登板時勝率）」を集計してランキング用に返す。
+
+    先発とみなす基準: 1登板で4回(12アウト)以上投球。
+    QS = 6回以上かつ自責3以内。
+    min_starts 未満はサンプル不足として除外。
+    """
+    with connect() as conn:
+        rows = conn.execute(
+            """SELECT g.player_id, g.is_win, g.stats_json,
+                      p.full_name, COALESCE(p.full_name_ja,'') AS ja,
+                      p.current_team_id
+               FROM player_game_log g
+               JOIN players p ON g.player_id = p.player_id
+               WHERE g.stat_group='pitching' AND g.season=?""",
+            (season,),
+        ).fetchall()
+        team_map = {r["team_id"]: (r["name_ja"], r["abbreviation"])
+                    for r in conn.execute("SELECT team_id, name_ja, abbreviation FROM teams")}
+
+    agg: dict[int, dict] = {}
+    for r in rows:
+        try:
+            s = json.loads(r["stats_json"])
+        except json.JSONDecodeError:
+            continue
+        outs = _ip_to_outs(s.get("inningsPitched"))
+        if outs < 12:          # リリーフ/短いオープナーは先発扱いしない
+            continue
+        er = s.get("earnedRuns") or 0
+        so = s.get("strikeOuts") or 0
+        a = agg.setdefault(r["player_id"], {
+            "player_id": r["player_id"],
+            "name": r["ja"] or r["full_name"],
+            "name_en": r["full_name"],
+            "team_id": r["current_team_id"],
+            "gs": 0, "w": 0, "l": 0, "qs": 0, "er": 0, "outs": 0, "so": 0,
+        })
+        a["gs"] += 1
+        a["er"] += er
+        a["outs"] += outs
+        a["so"] += so
+        if r["is_win"] == 1:
+            a["w"] += 1
+        elif r["is_win"] == 0:
+            a["l"] += 1
+        if outs >= 18 and er <= 3:
+            a["qs"] += 1
+
+    out = []
+    for a in agg.values():
+        if a["gs"] < min_starts:
+            continue
+        decisions = a["w"] + a["l"]
+        team = team_map.get(a["team_id"], ("-", ""))
+        era = (a["er"] * 27 / a["outs"]) if a["outs"] else None
+        out.append({
+            "player_id": a["player_id"],
+            "name": a["name"],
+            "name_en": a["name_en"],
+            "team_ja": team[0],
+            "team_abbr": (team[1] or "").lower(),
+            "gs": a["gs"],
+            "wins": a["w"], "losses": a["l"],
+            "win_pct": a["w"] / decisions if decisions else 0.0,
+            "qs": a["qs"],
+            "qs_rate": a["qs"] / a["gs"] if a["gs"] else 0.0,
+            "era": era,
+            "ip": a["outs"] / 3,
+            "so": a["so"],
+        })
+    return out

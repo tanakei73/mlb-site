@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}先発すると勝てる投手ランキング - {{ season }}年MLB{% endblock %}
+{% block content %}
+
+<h2>先発すると勝てる投手ランキング</h2>
+<p class="meta-note">
+  8登板以上の先発投手が対象。「勝ち」は<b>投手の実力（失点を防ぐ力）</b>と<b>打線の援護</b>の両方で決まります。
+  防御率・QS率が投手本人の実力、登板時勝率は援護込みの実際の結果です。
+  分析では防御率が登板時勝率と最も強く相関（-0.57）しました。
+</p>
+
+<section>
+  <h3>総合「勝ち運指数」<small class="header-meta">QS率45% + 登板時勝率35% + 防御率20% で合成</small></h3>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>順</th><th>投手</th><th>チーム</th>
+        <th>指数</th><th>防御率</th><th>QS率</th><th>登板時勝率</th><th>登板</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for p in by_score %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td class="team-cell"><a href="{{ root }}players/pitchers/{{ p.player_id }}.html">{{ p.name }}</a></td>
+        <td>{{ p.team_ja }}</td>
+        <td class="score"><b>{{ p.score }}</b></td>
+        <td>{{ '%.2f'|format(p.era) if p.era is not none else '-' }}</td>
+        <td>{{ (p.qs_rate*100)|int }}%</td>
+        <td class="score">.{{ '%03d'|format((p.win_pct*1000)|int) }}</td>
+        <td>{{ p.gs }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<div class="rank-columns">
+  <section class="rank-col">
+    <h3>実力① 防御率<small class="header-meta">失点を防ぐ力</small></h3>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>順</th><th>投手</th><th>ERA</th><th>QS率</th></tr></thead>
+      <tbody>
+      {% for p in by_era %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td class="team-cell"><a href="{{ root }}players/pitchers/{{ p.player_id }}.html">{{ p.name }}</a> <small>{{ p.team_ja }}</small></td>
+          <td class="score">{{ '%.2f'|format(p.era) }}</td>
+          <td>{{ (p.qs_rate*100)|int }}%</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="rank-col">
+    <h3>実力② QS率<small class="header-meta">6回3失点以内で試合を作る率</small></h3>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>順</th><th>投手</th><th>QS率</th><th>ERA</th></tr></thead>
+      <tbody>
+      {% for p in by_qs %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td class="team-cell"><a href="{{ root }}players/pitchers/{{ p.player_id }}.html">{{ p.name }}</a> <small>{{ p.team_ja }}</small></td>
+          <td class="score">{{ (p.qs_rate*100)|int }}%</td>
+          <td>{{ '%.2f'|format(p.era) if p.era is not none else '-' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="rank-col">
+    <h3>結果 登板時勝率<small class="header-meta">援護込み・実際に勝った率</small></h3>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>順</th><th>投手</th><th>勝率</th><th>成績</th></tr></thead>
+      <tbody>
+      {% for p in by_win %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td class="team-cell"><a href="{{ root }}players/pitchers/{{ p.player_id }}.html">{{ p.name }}</a> <small>{{ p.team_ja }}</small></td>
+          <td class="score">.{{ '%03d'|format((p.win_pct*1000)|int) }}</td>
+          <td>{{ p.wins }}-{{ p.losses }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+</div>
+
+<p class="meta-note">
+  ※ 例: 大谷翔平は防御率・QS率で球界最高クラスでも、打線の援護に恵まれず登板時勝率は伸び悩む——「投げれば試合は作るが勝ちは付きにくい」典型。逆に総合指数上位は<b>実力も結果も伴った「本当に勝てる投手」</b>です。
+</p>
+
+{% endblock %}

@@ -11,7 +11,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from db import connect
 from predict import predict
-from signals import pitcher_form, pitcher_form_badge
+from signals import pitcher_form, pitcher_form_badge, starter_ranking
 from venue_master import venue_short
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -925,6 +925,36 @@ def build_japanese_page(env, base_ctx) -> None:
     render(env, "japanese.html", ctx, SITE / "japanese.html")
 
 
+def build_pitcher_ranking_page(env, base_ctx) -> None:
+    """先発すると勝てる投手ランキング（実力×結果の2軸）。"""
+    ranks = starter_ranking(SEASON, min_starts=8)
+    if not ranks:
+        return
+    # 各ランキングを用意
+    by_era = sorted([r for r in ranks if r["era"] is not None],
+                    key=lambda x: x["era"])[:20]
+    by_qs = sorted(ranks, key=lambda x: (-x["qs_rate"], x["era"] or 99))[:20]
+    by_win = sorted(ranks, key=lambda x: (-x["win_pct"], x["era"] or 99))[:20]
+
+    # 総合「勝ち運指数」: QS率(実力) と 登板時勝率(結果) を合成 + 防御率ボーナス
+    def score(r):
+        era_bonus = max(0.0, (4.10 - (r["era"] or 4.10)) / 4.10)  # 0〜1
+        return round((r["qs_rate"] * 0.45 + r["win_pct"] * 0.35 + era_bonus * 0.20) * 100, 1)
+    for r in ranks:
+        r["score"] = score(r)
+    by_score = sorted(ranks, key=lambda x: -x["score"])[:20]
+
+    ctx = {
+        **base_ctx,
+        "active": "pitcher_ranking",
+        "by_score": by_score,
+        "by_era": by_era,
+        "by_qs": by_qs,
+        "by_win": by_win,
+    }
+    render(env, "pitcher_ranking.html", ctx, SITE / "pitchers.html")
+
+
 def build_leaders_page(env, base_ctx) -> None:
     scopes = []
     for scope_id, scope_label in [(0, "MLB全体"), (103, "ア・リーグ"), (104, "ナ・リーグ")]:
@@ -981,6 +1011,8 @@ def main() -> None:
     build_leaders_page(env, base_ctx)
     print("[build] japanese players")
     build_japanese_page(env, base_ctx)
+    print("[build] pitcher ranking")
+    build_pitcher_ranking_page(env, base_ctx)
     print("[build] pitcher pages")
     n = build_pitcher_pages(env, base_ctx, teams)
     print(f"  → {n} pitcher pages")
