@@ -40,8 +40,20 @@
       <div class="split-card-pct">{{ first_score.allowed_first.pct }}</div>
     </div>
     {% endif %}
+    {% if first_score and first_score.first_inn %}
+    <div class="split-card {{ first_score.first_inn.score_kind }}">
+      <div class="split-card-label">初回に得点</div>
+      <div class="split-card-record">{{ first_score.first_inn.score_pct }}%</div>
+      <div class="split-card-pct">{{ first_score.first_inn.games }}試合中</div>
+    </div>
+    <div class="split-card {{ first_score.first_inn.allow_kind }}">
+      <div class="split-card-label">初回に失点</div>
+      <div class="split-card-record">{{ first_score.first_inn.allow_pct }}%</div>
+      <div class="split-card-pct">{{ first_score.first_inn.games }}試合中</div>
+    </div>
+    {% endif %}
   </div>
-  <p class="meta-note">緑＝勝率.560以上（強い）／ 赤＝.440以下（弱い）。期待勝率は得失点から算出した実力勝率（ピタゴラス勝率）。</p>
+  <p class="meta-note">緑＝良い（勝率.560以上／初回得点率.33以上／初回失点率.25以下）、赤＝悪い。期待勝率は得失点から算出した実力勝率（ピタゴラス勝率）。初回得点/失点率は1回に1点以上取った/取られた試合の割合（リーグ平均は約30%）。</p>
 </section>
 {% endif %}
 

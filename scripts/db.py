@@ -94,6 +94,9 @@ CREATE TABLE IF NOT EXISTS team_first_score (
     scored_first_l INTEGER,
     allowed_first_w INTEGER,        -- 先制された試合の勝利数
     allowed_first_l INTEGER,
+    games          INTEGER,         -- 集計対象試合数
+    first_inn_scored  INTEGER,      -- 1回に得点した試合数
+    first_inn_allowed INTEGER,      -- 1回に失点した試合数
     updated_at     TEXT,
     PRIMARY KEY (team_id, season)
 );
@@ -239,6 +242,9 @@ def init_db() -> None:
         _ensure_column(conn, "leaders", "player_name_ja", "TEXT")
         _ensure_column(conn, "games", "away_pitcher_id", "INTEGER")
         _ensure_column(conn, "games", "home_pitcher_id", "INTEGER")
+        _ensure_column(conn, "team_first_score", "games", "INTEGER")
+        _ensure_column(conn, "team_first_score", "first_inn_scored", "INTEGER")
+        _ensure_column(conn, "team_first_score", "first_inn_allowed", "INTEGER")
         conn.commit()
 
 

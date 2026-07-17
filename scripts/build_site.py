@@ -530,7 +530,8 @@ def load_team_first_score(team_id: int) -> dict | None:
     with connect() as conn:
         r = conn.execute(
             """SELECT scored_first_w sw, scored_first_l sl,
-                      allowed_first_w aw, allowed_first_l al
+                      allowed_first_w aw, allowed_first_l al,
+                      games, first_inn_scored fis, first_inn_allowed fia
                FROM team_first_score WHERE team_id=? AND season=?""",
             (team_id, SEASON)).fetchone()
     if not r:
@@ -540,7 +541,22 @@ def load_team_first_score(team_id: int) -> dict | None:
         t = w + l
         return {"w": w, "l": l, "pct": f".{int(w/t*1000):03d}" if t else "-",
                 "kind": "strong" if t and w/t >= 0.560 else ("weak" if t and w/t <= 0.440 else "even")}
-    return {"scored_first": pack(sw, sl), "allowed_first": pack(aw, al)}
+    out = {"scored_first": pack(sw, sl), "allowed_first": pack(aw, al)}
+
+    # 1回の得点率/失点率（リーグ平均 ≈ 30% を基準に強弱判定）
+    games = r["games"] or 0
+    if games > 0:
+        srate = (r["fis"] or 0) / games
+        arate = (r["fia"] or 0) / games
+        out["first_inn"] = {
+            "games": games,
+            "score_pct": round(srate * 100),
+            "allow_pct": round(arate * 100),
+            # 得点率は高いほど良い / 失点率は低いほど良い
+            "score_kind": "strong" if srate >= 0.33 else ("weak" if srate <= 0.25 else "even"),
+            "allow_kind": "strong" if arate <= 0.25 else ("weak" if arate >= 0.33 else "even"),
+        }
+    return out
 
 
 def build_team_pages(env, base_ctx, teams: dict, standings: dict, today) -> None:

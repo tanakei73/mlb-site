@@ -325,11 +325,14 @@ def fetch_first_score() -> None:
     today = dt.datetime.now(JST).date().isoformat()
     data = _get("schedule", sportId=1, startDate=start, endDate=today,
                 hydrate="linescore")
-    # team_id -> [scored_first_w, scored_first_l, allowed_first_w, allowed_first_l]
-    agg: dict[int, list[int]] = {}
+    # team_id -> dict(先制W/L, 被先制W/L, games, 1回得点, 1回失点)
+    def slot(tid: int) -> dict:
+        return agg.setdefault(tid, {
+            "sfw": 0, "sfl": 0, "afw": 0, "afl": 0,
+            "games": 0, "fis": 0, "fia": 0,
+        })
 
-    def slot(tid: int) -> list[int]:
-        return agg.setdefault(tid, [0, 0, 0, 0])
+    agg: dict[int, dict] = {}
 
     for date_block in data.get("dates", []):
         for g in date_block.get("games", []):
@@ -343,13 +346,30 @@ def fetch_first_score() -> None:
             home_final = (ls.get("teams", {}).get("home", {}) or {}).get("runs")
             if away_final is None or home_final is None:
                 continue
+
+            av = slot(away_id)
+            hm = slot(home_id)
+            av["games"] += 1
+            hm["games"] += 1
+
+            # 1回の得点 (innings[0])
+            if innings:
+                first_inn = innings[0]
+                a1 = (first_inn.get("away", {}) or {}).get("runs", 0) or 0
+                h1 = (first_inn.get("home", {}) or {}).get("runs", 0) or 0
+                if a1 > 0:
+                    av["fis"] += 1   # away が1回に得点
+                    hm["fia"] += 1   # home が1回に失点
+                if h1 > 0:
+                    hm["fis"] += 1
+                    av["fia"] += 1
+
             # 先制チームを判定
             first = None
             for inn in innings:
                 a = (inn.get("away", {}) or {}).get("runs", 0) or 0
                 h = (inn.get("home", {}) or {}).get("runs", 0) or 0
                 if a > 0 and h > 0:
-                    # 同一イニングで両軍得点（表が先）→ away先制
                     first = "away"; break
                 if a > 0:
                     first = "away"; break
@@ -360,21 +380,23 @@ def fetch_first_score() -> None:
             away_won = away_final > home_final
             home_won = home_final > away_final
             if first == "away":
-                # away が先制
-                a = slot(away_id); a[0 if away_won else 1] += 1
-                h = slot(home_id); h[2 if home_won else 3] += 1
+                av["sfw" if away_won else "sfl"] += 1
+                hm["afw" if home_won else "afl"] += 1
             else:
-                h = slot(home_id); h[0 if home_won else 1] += 1
-                a = slot(away_id); a[2 if away_won else 3] += 1
+                hm["sfw" if home_won else "sfl"] += 1
+                av["afw" if away_won else "afl"] += 1
 
     now = dt.datetime.now(JST).isoformat(timespec="seconds")
-    out = [(tid, SEASON, v[0], v[1], v[2], v[3], now) for tid, v in agg.items()]
+    out = [(tid, SEASON, v["sfw"], v["sfl"], v["afw"], v["afl"],
+            v["games"], v["fis"], v["fia"], now)
+           for tid, v in agg.items()]
     with connect() as conn:
         conn.executemany(
             """INSERT OR REPLACE INTO team_first_score
             (team_id, season, scored_first_w, scored_first_l,
-             allowed_first_w, allowed_first_l, updated_at)
-            VALUES (?,?,?,?,?,?,?)""",
+             allowed_first_w, allowed_first_l, games,
+             first_inn_scored, first_inn_allowed, updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?)""",
             out,
         )
         conn.commit()
