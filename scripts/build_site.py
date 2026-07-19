@@ -10,6 +10,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from db import connect
+from first_inning import predict_first_inning
 from predict import predict
 from signals import pitcher_form, pitcher_form_badge, starter_ranking
 from venue_master import venue_short
@@ -408,6 +409,7 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
         _attach_prediction(g, is_future=True)
         g["away_form_badge"] = pitcher_form_badge(pitcher_form(g.get("away_pitcher_id")))
         g["home_form_badge"] = pitcher_form_badge(pitcher_form(g.get("home_pitcher_id")))
+        g["first_inning"] = predict_first_inning(g)
         today_games.append(g)
 
     # 「直近・進行中の試合」予想 vs 実績

@@ -57,6 +57,52 @@
   {% endif %}
 </section>
 
+{% set fi_games = today_games | selectattr('first_inning') | list %}
+{% if fi_games %}
+<section>
+  <h2>第一イニング予想 <small class="header-meta">両先発の初回失点傾向 × 両打線の初回得点力から算出</small></h2>
+  <div class="table-wrap">
+  <table class="games">
+    <thead>
+      <tr>
+        <th>ビジター</th>
+        <th>先発(初回失点率)</th>
+        <th>初回得点率</th>
+        <th class="fi-head">1回リード予想</th>
+        <th>初回得点率</th>
+        <th>先発(初回失点率)</th>
+        <th>ホーム</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for g in fi_games %}
+      {% set fi = g.first_inning %}
+      <tr>
+        <td class="team-cell"><a href="{{ root }}teams/{{ g.away_abbr|lower }}.html">{{ g.away_name_ja }}</a></td>
+        <td class="pitcher-cell">
+          {% if g.away_pitcher_id %}<a href="{{ root }}players/pitchers/{{ g.away_pitcher_id }}.html">{{ g.away_pitcher }}</a>{% else %}{{ g.away_pitcher or '未定' }}{% endif %}
+          {% if fi.away_pitcher_allow_prob is not none %}<span class="fi-sub">初回失点{{ fi.away_pitcher_allow_prob }}%</span>{% endif %}
+        </td>
+        <td class="score">{{ fi.away_score_prob }}%</td>
+        <td class="fi-bar-cell">
+          <span class="fi-seg away" style="width:{{ fi.away_ahead }}%" title="ビジターリード {{ fi.away_ahead }}%"></span><span class="fi-seg tie" style="width:{{ fi.tie }}%" title="五分(0-0含む) {{ fi.tie }}%"></span><span class="fi-seg home" style="width:{{ fi.home_ahead }}%" title="ホームリード {{ fi.home_ahead }}%"></span>
+          <div class="fi-nums"><span class="away">{{ fi.away_ahead }}</span> / <span class="muted">{{ fi.tie }}</span> / <span class="home">{{ fi.home_ahead }}</span></div>
+        </td>
+        <td class="score">{{ fi.home_score_prob }}%</td>
+        <td class="pitcher-cell">
+          {% if g.home_pitcher_id %}<a href="{{ root }}players/pitchers/{{ g.home_pitcher_id }}.html">{{ g.home_pitcher }}</a>{% else %}{{ g.home_pitcher or '未定' }}{% endif %}
+          {% if fi.home_pitcher_allow_prob is not none %}<span class="fi-sub">初回失点{{ fi.home_pitcher_allow_prob }}%</span>{% endif %}
+        </td>
+        <td class="team-cell"><a href="{{ root }}teams/{{ g.home_abbr|lower }}.html">{{ g.home_name_ja }}</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="meta-note">※「1回リード予想」は<span style="color:var(--color-win)">■</span>ビジターリード / <span style="color:#bbb">■</span>五分（0-0含む）/ <span style="color:var(--color-loss)">■</span>ホームリードの確率。各先発の1回失点をポアソン分布でモデル化し、打線の初回得点力とリーグ平均で合成。試合前のみ表示。</p>
+</section>
+{% endif %}
+
 {% if yesterday_games %}
 <section>
   <h2>直近・進行中の試合 (予想 vs 実績)

@@ -271,6 +271,32 @@ td.pred-cell .pred.fav {
 td.pred-cell .pred-sep { color: #ccc; margin: 0 2px; }
 .muted { color: #ccc; }
 
+/* 第一イニング予想 */
+.fi-sub {
+  display: block;
+  font-size: 10px;
+  color: var(--color-text-sub);
+  margin-top: 1px;
+}
+th.fi-head { min-width: 120px; }
+td.fi-bar-cell { min-width: 120px; padding: 4px 8px; }
+.fi-bar-cell .fi-seg {
+  display: inline-block;
+  height: 9px;
+  vertical-align: middle;
+}
+.fi-bar-cell .fi-seg.away { background: var(--color-win); border-radius: 3px 0 0 3px; }
+.fi-bar-cell .fi-seg.tie  { background: #d8d8d4; }
+.fi-bar-cell .fi-seg.home { background: var(--color-loss); border-radius: 0 3px 3px 0; }
+.fi-bar-cell .fi-nums {
+  font-family: var(--font-num);
+  font-size: 10px;
+  margin-top: 2px;
+  text-align: center;
+}
+.fi-bar-cell .fi-nums .away { color: var(--color-win); font-weight: 700; }
+.fi-bar-cell .fi-nums .home { color: var(--color-loss); font-weight: 700; }
+
 .pred-summary {
   font-size: 12px;
   font-weight: 400;

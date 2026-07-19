@@ -329,7 +329,7 @@ def fetch_first_score() -> None:
     def slot(tid: int) -> dict:
         return agg.setdefault(tid, {
             "sfw": 0, "sfl": 0, "afw": 0, "afl": 0,
-            "games": 0, "fis": 0, "fia": 0,
+            "games": 0, "fis": 0, "fia": 0, "firs": 0, "fira": 0,
         })
 
     agg: dict[int, dict] = {}
@@ -357,6 +357,10 @@ def fetch_first_score() -> None:
                 first_inn = innings[0]
                 a1 = (first_inn.get("away", {}) or {}).get("runs", 0) or 0
                 h1 = (first_inn.get("home", {}) or {}).get("runs", 0) or 0
+                av["firs"] += a1   # away の1回総得点
+                av["fira"] += h1   # away の1回総失点(= home得点)
+                hm["firs"] += h1
+                hm["fira"] += a1
                 if a1 > 0:
                     av["fis"] += 1   # away が1回に得点
                     hm["fia"] += 1   # home が1回に失点
@@ -388,15 +392,16 @@ def fetch_first_score() -> None:
 
     now = dt.datetime.now(JST).isoformat(timespec="seconds")
     out = [(tid, SEASON, v["sfw"], v["sfl"], v["afw"], v["afl"],
-            v["games"], v["fis"], v["fia"], now)
+            v["games"], v["fis"], v["fia"], v["firs"], v["fira"], now)
            for tid, v in agg.items()]
     with connect() as conn:
         conn.executemany(
             """INSERT OR REPLACE INTO team_first_score
             (team_id, season, scored_first_w, scored_first_l,
              allowed_first_w, allowed_first_l, games,
-             first_inn_scored, first_inn_allowed, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?)""",
+             first_inn_scored, first_inn_allowed,
+             first_inn_runs_scored, first_inn_runs_allowed, updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
             out,
         )
         conn.commit()
