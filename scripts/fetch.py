@@ -4,6 +4,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import sys
+import time
 from typing import Any
 
 import requests
@@ -17,11 +18,42 @@ JST = dt.timezone(dt.timedelta(hours=9))
 SEASON = 2026
 
 
+RETRIES = 4          # 通信エラー/5xx 時の再試行回数
+BACKOFF = 2.0        # 待機秒 (指数バックオフ: 2, 4, 8, 16秒)
+
+# 接続は使い回す (毎リクエストのTCP/TLSハンドシェイクを減らし、接続リセットも起きにくい)
+_session = requests.Session()
+
+
 def _get(path: str, **params: Any) -> dict:
+    """MLB Stats API を叩く。一時的な通信エラー・5xx はリトライする。
+
+    以前は1回の ConnectionReset で日次更新が丸ごと落ちていたため、
+    指数バックオフ付きの再試行を入れている。
+    """
     url = f"{API_BASE}/{path}"
-    r = requests.get(url, params=params, timeout=20)
-    r.raise_for_status()
-    return r.json()
+    last_err: Exception | None = None
+    for attempt in range(RETRIES + 1):
+        try:
+            r = _session.get(url, params=params, timeout=30)
+            # 5xx はサーバ側の一時障害とみなしてリトライ
+            if r.status_code >= 500:
+                raise requests.HTTPError(f"{r.status_code} server error", response=r)
+            r.raise_for_status()
+            return r.json()
+        except (requests.ConnectionError, requests.Timeout,
+                requests.HTTPError, json.JSONDecodeError) as e:
+            # 4xx (404など) はリトライしても無駄なので即座に投げる
+            resp = getattr(e, "response", None)
+            if resp is not None and 400 <= resp.status_code < 500:
+                raise
+            last_err = e
+            if attempt < RETRIES:
+                wait = BACKOFF * (2 ** attempt)
+                print(f"  [retry {attempt+1}/{RETRIES}] {path}: {e} -> {wait:.0f}s待機",
+                      file=sys.stderr, flush=True)
+                time.sleep(wait)
+    raise last_err  # type: ignore[misc]
 
 
 def fetch_teams() -> None:
