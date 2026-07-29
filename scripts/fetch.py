@@ -705,6 +705,55 @@ def fetch_boxscore_for_game(game_pk: int) -> None:
         conn.commit()
 
 
+def fetch_season_linescores(start: str, end: str) -> None:
+    """シーズン全体のイニング別スコアを取得する(軽量版)。
+
+    schedule?hydrate=linescore は1回の呼び出しでその日の全試合ぶんの
+    イニング別スコアを返すため、試合ごとに boxscore を叩くより
+    2桁少ないAPI呼び出しで済む(全シーズンで約140回)。
+
+    第一イニング予想の的中率トラッカーが十分なサンプルを持てるようにするのが目的。
+    チーム打撃成績などは含まれないので、直近試合は従来の
+    fetch_recent_boxscores() で別途取得する。
+    """
+    d0 = dt.date.fromisoformat(start)
+    d1 = dt.date.fromisoformat(end)
+    rows = []
+    days = 0
+    d = d0
+    while d <= d1:
+        data = _get("schedule", sportId=1, date=d.isoformat(), hydrate="linescore")
+        for dd in data.get("dates", []):
+            for g in dd.get("games", []):
+                if g.get("status", {}).get("abstractGameState") != "Final":
+                    continue
+                ls = g.get("linescore") or {}
+                innings = ls.get("innings") or []
+                if not innings:
+                    continue
+                t = ls.get("teams") or {}
+                a = t.get("away") or {}
+                h = t.get("home") or {}
+                rows.append((
+                    g["gamePk"],
+                    a.get("runs"), a.get("hits"), a.get("errors"),
+                    h.get("runs"), h.get("hits"), h.get("errors"),
+                    json.dumps(innings),
+                ))
+        days += 1
+        d += dt.timedelta(days=1)
+    if rows:
+        with connect() as conn:
+            # 既存行(boxscore由来の詳細付き)を壊さないよう、無い行だけ入れる
+            conn.executemany(
+                """INSERT OR IGNORE INTO boxscore_linescore
+                   (game_pk, away_runs, away_hits, away_errors,
+                    home_runs, home_hits, home_errors, innings_json)
+                   VALUES (?,?,?,?,?,?,?,?)""", rows)
+            conn.commit()
+    print(f"[linescores] {len(rows)} games from {days} dates ({start} - {end})")
+
+
 def fetch_recent_boxscores(days_back: int = 3) -> None:
     today = dt.datetime.now(JST).date()
     start = (today - dt.timedelta(days=days_back)).isoformat()
@@ -739,6 +788,8 @@ def main() -> None:
     fetch_leaders()
     fetch_japanese_player_stats()
     fetch_starting_pitchers()
+    # 第一イニング予想の的中率トラッカー用に、シーズン全体のイニング別スコアを確保
+    fetch_season_linescores(f"{SEASON}-03-15", today.isoformat())
     fetch_recent_boxscores(days_back=3)
 
 

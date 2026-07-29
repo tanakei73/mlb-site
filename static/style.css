@@ -362,6 +362,27 @@ tr.pick-confident { background: rgba(58, 122, 90, .07); }
 .fi-track-wdl .w { color: var(--color-win); font-weight: 700; }
 .fi-track-wdl .d { color: var(--color-text-sub); }
 .fi-track-wdl .l { color: var(--color-loss); font-weight: 700; }
+.fi-track-strict {
+  font-size: 11px;
+  color: var(--color-text-sub);
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid var(--color-border);
+  width: 100%;
+  text-align: center;
+}
+.fi-track-warn {
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--color-text-sub);
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 300px;
+}
 .fi-track-table .fi-date { font-family: var(--font-num); font-size: 12px; white-space: nowrap; }
 .fi-track-table .fav { font-weight: 600; }
 .fi-track-table .card { font-size: 12px; }

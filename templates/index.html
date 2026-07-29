@@ -158,12 +158,21 @@
       <div class="fi-track-pct">{{ tk.overall.hit_pct }}<span class="unit">%</span></div>
       <div class="fi-track-cap">差{{ tk.gap_min }}%以上の予想 {{ tk.overall.total }}試合<br>的中 {{ tk.overall.hit }}（負けなければ的中）</div>
       <div class="fi-track-wdl"><span class="w">{{ tk.overall.win }}勝</span> <span class="d">{{ tk.overall.tie }}分</span> <span class="l">{{ tk.overall.loss }}敗</span></div>
+      <div class="fi-track-strict">うち実際に先制できた率 <strong>{{ tk.overall.win_pct }}%</strong></div>
     </div>
     {% if tk.strong %}
     <div class="fi-track-hero sub">
       <div class="fi-track-pct">{{ tk.strong.hit_pct }}<span class="unit">%</span></div>
       <div class="fi-track-cap">はっきり差がついた予想<br>差{{ tk.gap_strong }}%以上 {{ tk.strong.total }}試合</div>
       <div class="fi-track-wdl"><span class="w">{{ tk.strong.win }}勝</span> <span class="d">{{ tk.strong.tie }}分</span> <span class="l">{{ tk.strong.loss }}敗</span></div>
+      <div class="fi-track-strict">先制できた率 <strong>{{ tk.strong.win_pct }}%</strong></div>
+    </div>
+    {% endif %}
+    {% if tk.overall.total < 50 %}
+    <div class="fi-track-warn">
+      <strong>サンプルが少ないため数字は大きく振れます。</strong><br>
+      同じ指標を全{{ tk.overall.total }}試合より多い母数で測ると、<br>
+      的中率は<strong>86%前後</strong>に落ち着きます（100%は続きません）。
     </div>
     {% endif %}
   </div>
