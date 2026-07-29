@@ -129,13 +129,24 @@ class ModelData:
         return v["ra9"], v["outs"] / 3
 
 
+_shared: Optional["ModelData"] = None
+
+
+def shared_data() -> "ModelData":
+    """ビルド中に使い回す ModelData。全試合+全投手ログを読むので毎回作らない。"""
+    global _shared
+    if _shared is None:
+        _shared = ModelData()
+    return _shared
+
+
 def predict_v2(game: dict, data: Optional[ModelData] = None) -> Optional[dict]:
     """検証済みモデルで1試合を予想。
 
     game には home_team_id / away_team_id / home_pitcher_id / away_pitcher_id が必要。
     返り値: {"home","away","confidence","fav_side","is_confident", ...}
     """
-    data = data or ModelData()
+    data = data or shared_data()
     h = data.team.get(game.get("home_team_id"))
     a = data.team.get(game.get("away_team_id"))
     if not h or not a or h["g"] < MIN_GAMES or a["g"] < MIN_GAMES:

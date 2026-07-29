@@ -16,7 +16,6 @@ from first_inning import (
     first_inning_accuracy,
 )
 from model_v2 import ModelData, predict_v2, expected_hit_rate
-from predict import predict
 from signals import pitcher_form, pitcher_form_badge, starter_ranking
 from venue_master import venue_short
 
@@ -355,15 +354,19 @@ def _attach_prediction(g: dict, is_future: bool) -> None:
         # 試合開始後で保存なし → 予想は無し (再計算しない)
         g["pred"] = None
         return
-    # 試合前で保存なし → 計算して保存
+    # 試合前で保存なし → 計算して保存 (検証済みモデル model_v2 を使用)
     try:
-        p = predict(g)
-        _save_prediction(g["game_pk"], p.home_prob, p.away_prob)
+        p = predict_v2(g)
+        if not p:
+            g["pred"] = None
+            return
+        _save_prediction(g["game_pk"], p["home"], p["away"])
         g["pred"] = {
-            "home": p.home_prob,
-            "away": p.away_prob,
+            "home": p["home"],
+            "away": p["away"],
             "predicted_at": None,
             "is_pregame": True,
+            "tier": p["tier"],
         }
     except Exception:
         g["pred"] = None
