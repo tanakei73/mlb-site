@@ -193,6 +193,44 @@ def _first_inning_actual(innings_json: Optional[str]) -> Optional[tuple]:
     return int(a), int(h)
 
 
+def first_inning_baseline() -> Optional[dict]:
+    """比較用の基準値。「予想せず選んだ場合」に何%になるかを実データから出す。
+
+    1回は半分以上が0-0で終わるため「負けなければ的中」は何もしなくても高く出る。
+    モデルの実質的な上積みを示すために併記する。
+    """
+    with connect() as conn:
+        rows = conn.execute(
+            """SELECT b.innings_json FROM boxscore_linescore b
+               JOIN games g ON b.game_pk=g.game_pk
+               WHERE g.status='Final' AND b.innings_json IS NOT NULL""").fetchall()
+    tie = away = home = 0
+    for r in rows:
+        actual = _first_inning_actual(r["innings_json"])
+        if actual is None:
+            continue
+        a, h = actual
+        if a == h:
+            tie += 1
+        elif a > h:
+            away += 1
+        else:
+            home += 1
+    n = tie + away + home
+    if not n:
+        return None
+    return {
+        "games": n,
+        "tie_pct": round(tie / n * 100, 1),
+        # 「負けなければ的中」の基準値
+        "nolose_random": round((tie + (away + home) / 2) / n * 100, 1),
+        "nolose_home": round((tie + home) / n * 100, 1),
+        # 「先制できた率」の基準値
+        "strike_random": round((away + home) / 2 / n * 100, 1),
+        "strike_home": round(home / n * 100, 1),
+    }
+
+
 def first_inning_accuracy(gap_min: int = GAP_MIN) -> Optional[dict]:
     """保存済みスナップショットと1回の実績を照合し的中率を集計。
 
@@ -265,9 +303,20 @@ def first_inning_accuracy(gap_min: int = GAP_MIN) -> Optional[dict]:
         }
 
     strong = [d for d in details if d["gap"] >= GAP_STRONG]
+    overall = _summ(details)
+    strong_s = _summ(strong) if strong else None
+    base = first_inning_baseline()
+    # モデルの実質的な上積み(基準値との差)
+    if base:
+        overall["edge_nolose"] = round(overall["hit_pct"] - base["nolose_home"], 1)
+        overall["edge_strike"] = round(overall["win_pct"] - base["strike_home"], 1)
+        if strong_s:
+            strong_s["edge_nolose"] = round(strong_s["hit_pct"] - base["nolose_home"], 1)
+            strong_s["edge_strike"] = round(strong_s["win_pct"] - base["strike_home"], 1)
     return {
-        "overall": _summ(details),
-        "strong": _summ(strong) if strong else None,
+        "overall": overall,
+        "strong": strong_s,
+        "baseline": base,
         "gap_min": gap_min,
         "gap_strong": GAP_STRONG,
         "details": details,

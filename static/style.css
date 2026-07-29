@@ -383,6 +383,19 @@ tr.pick-confident { background: rgba(58, 122, 90, .07); }
   justify-content: center;
   max-width: 300px;
 }
+/* 基準値との比較 */
+.fi-base-table { margin-bottom: 4px; }
+.fi-base-table td:first-child { font-size: 12px; }
+tr.fi-base-ref td { color: var(--color-text-sub); }
+tr.fi-base-model { background: rgba(58, 122, 90, .07); }
+.fi-edge {
+  font-family: var(--font-num);
+  font-size: 10px;
+  color: var(--color-win);
+  margin-left: 3px;
+}
+.fi-base-note { margin-top: 6px; }
+
 .fi-track-table .fi-date { font-family: var(--font-num); font-size: 12px; white-space: nowrap; }
 .fi-track-table .fav { font-weight: 600; }
 .fi-track-table .card { font-size: 12px; }

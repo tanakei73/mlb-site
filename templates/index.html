@@ -171,11 +171,52 @@
     {% if tk.overall.total < 50 %}
     <div class="fi-track-warn">
       <strong>サンプルが少ないため数字は大きく振れます。</strong><br>
-      同じ指標を全{{ tk.overall.total }}試合より多い母数で測ると、<br>
-      的中率は<strong>86%前後</strong>に落ち着きます（100%は続きません）。
+      母数が増えると下の基準値に近づきます。<br>
+      100%のような数字は続きません。
     </div>
     {% endif %}
   </div>
+
+  {% if tk.baseline %}
+  {% set bl = tk.baseline %}
+  <div class="table-wrap">
+  <table class="games fi-base-table">
+    <thead>
+      <tr><th>選び方</th><th>負けなければ的中</th><th>実際に先制できた率</th></tr>
+    </thead>
+    <tbody>
+      <tr class="fi-base-ref">
+        <td>ランダムに片方を選ぶ</td>
+        <td class="score muted">{{ bl.nolose_random }}%</td>
+        <td class="score muted">{{ bl.strike_random }}%</td>
+      </tr>
+      <tr class="fi-base-ref">
+        <td>常にホームを選ぶ（何もしない）</td>
+        <td class="score muted">{{ bl.nolose_home }}%</td>
+        <td class="score muted">{{ bl.strike_home }}%</td>
+      </tr>
+      <tr class="fi-base-model">
+        <td><strong>モデル（差{{ tk.gap_min }}%以上）</strong></td>
+        <td class="score"><strong>{{ tk.overall.hit_pct }}%</strong>
+          {% if tk.overall.edge_nolose is defined %}<span class="fi-edge">{{ '%+.1f'|format(tk.overall.edge_nolose) }}</span>{% endif %}</td>
+        <td class="score"><strong>{{ tk.overall.win_pct }}%</strong>
+          {% if tk.overall.edge_strike is defined %}<span class="fi-edge">{{ '%+.1f'|format(tk.overall.edge_strike) }}</span>{% endif %}</td>
+      </tr>
+      {% if tk.strong %}
+      <tr class="fi-base-model">
+        <td><strong>モデル（差{{ tk.gap_strong }}%以上）</strong></td>
+        <td class="score"><strong>{{ tk.strong.hit_pct }}%</strong>
+          {% if tk.strong.edge_nolose is defined %}<span class="fi-edge">{{ '%+.1f'|format(tk.strong.edge_nolose) }}</span>{% endif %}</td>
+        <td class="score"><strong>{{ tk.strong.win_pct }}%</strong>
+          {% if tk.strong.edge_strike is defined %}<span class="fi-edge">{{ '%+.1f'|format(tk.strong.edge_strike) }}</span>{% endif %}</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+  </div>
+  <p class="meta-note fi-base-note">※上段2行が<strong>基準値</strong>（予想せずに選んだ場合）。1回は全{{ bl.games }}試合のうち<strong>{{ bl.tie_pct }}%が0-0の引き分け</strong>で終わるため、「負けなければ的中」は何もしなくても{{ bl.nolose_home }}%程度になります。緑の数字はモデルの<strong>実質的な上積み</strong>です。<br>
+  そのため「負けなければ的中」の上積みは限定的で、モデルの実力がはっきり出るのは<strong>「実際に先制できた率」</strong>の方（基準{{ bl.strike_home }}%に対し、差{{ tk.gap_strong }}%以上で{{ tk.strong.win_pct if tk.strong else '-' }}%）。「この試合は初回に動く／どちらが動かすか」の判断に向いた指標です。</p>
+  {% endif %}
   <div class="table-wrap">
   <table class="games fi-track-table">
     <thead>
