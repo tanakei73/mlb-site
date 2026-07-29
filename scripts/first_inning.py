@@ -147,3 +147,129 @@ def predict_first_inning(game: dict) -> Optional[dict]:
         "away_pitcher_allow_prob": round(ap["allow_prob"] * 100) if ap else None,
         "home_pitcher_allow_prob": round(hp["allow_prob"] * 100) if hp else None,
     }
+
+
+# ---- 事前スナップショット & 的中率トラッカー ----
+
+GAP_MIN = 15      # 「差がついた予想」と見なすリード確率差(%)。これ未満は五分カード扱い
+GAP_STRONG = 30   # 強く差がついた予想の閾値
+
+
+def save_first_inning_snapshot(game_pk: int, fi: dict, predicted_at: str,
+                               backfill: bool = False) -> None:
+    """試合前の第一イニング予想を凍結保存。既存があれば上書きしない。
+
+    backfill=True は「試合後に現在データで事後推定した近似値」を意味する
+    (真の事前スナップショットが無い過去試合の穴埋め用)。
+    """
+    if not fi:
+        return
+    with connect() as conn:
+        conn.execute(
+            """INSERT OR IGNORE INTO first_inning_predictions
+               (game_pk, predicted_at, away_ahead, tie, home_ahead, backfill)
+               VALUES (?,?,?,?,?,?)""",
+            (game_pk, predicted_at, fi["away_ahead"], fi["tie"], fi["home_ahead"],
+             1 if backfill else 0),
+        )
+        conn.commit()
+
+
+def _first_inning_actual(innings_json: Optional[str]) -> Optional[tuple]:
+    """innings_json から (away_runs_1回, home_runs_1回) を返す。無ければ None。"""
+    if not innings_json:
+        return None
+    try:
+        innings = json.loads(innings_json)
+    except (TypeError, json.JSONDecodeError):
+        return None
+    if not innings:
+        return None
+    first = innings[0]
+    a = (first.get("away") or {}).get("runs")
+    h = (first.get("home") or {}).get("runs")
+    if a is None or h is None:
+        return None
+    return int(a), int(h)
+
+
+def first_inning_accuracy(gap_min: int = GAP_MIN) -> Optional[dict]:
+    """保存済みスナップショットと1回の実績を照合し的中率を集計。
+
+    判定: リード差が gap_min 以上ついた予想のみ対象。有利と出た側が
+    実際の1回で「リード維持 or 引き分け(0-0含む)」なら的中(負けなければ的中)、
+    ビハインドなら外れ。
+    返り値に overall / strong(差>=30) の集計と、直近試合の明細リストを含む。
+    """
+    sql = """
+        SELECT f.away_ahead, f.tie, f.home_ahead, f.backfill,
+               g.game_pk, g.game_date, g.status,
+               ta.name_ja AS away_ja, th.name_ja AS home_ja,
+               b.innings_json
+        FROM first_inning_predictions f
+        JOIN games g ON f.game_pk = g.game_pk
+        JOIN boxscore_linescore b ON f.game_pk = b.game_pk
+        LEFT JOIN teams ta ON g.away_team_id = ta.team_id
+        LEFT JOIN teams th ON g.home_team_id = th.team_id
+        WHERE g.status = 'Final'
+        ORDER BY g.game_datetime DESC
+    """
+    with connect() as conn:
+        rows = [dict(r) for r in conn.execute(sql)]
+
+    details = []
+    for r in rows:
+        actual = _first_inning_actual(r["innings_json"])
+        if actual is None:
+            continue
+        a_runs, h_runs = actual
+        gap = abs(r["away_ahead"] - r["home_ahead"])
+        if gap < gap_min:
+            continue   # 五分カードは予想していないので対象外
+        # 有利と出た側
+        fav_home = r["home_ahead"] > r["away_ahead"]
+        fav_ja = r["home_ja"] if fav_home else r["away_ja"]
+        fav_runs = h_runs if fav_home else a_runs
+        opp_runs = a_runs if fav_home else h_runs
+        if fav_runs > opp_runs:
+            outcome = "win"     # 有利側が初回に先制
+        elif fav_runs == opp_runs:
+            outcome = "tie"     # 0-0 など五分 → 負けてはいない
+        else:
+            outcome = "loss"    # ビハインド → 外れ
+        details.append({
+            "game_pk": r["game_pk"],
+            "date": r["game_date"],
+            "away_ja": r["away_ja"], "home_ja": r["home_ja"],
+            "fav_ja": fav_ja, "fav_home": fav_home,
+            "gap": gap,
+            "away_runs": a_runs, "home_runs": h_runs,
+            "outcome": outcome,
+            "hit": outcome in ("win", "tie"),
+            "backfill": bool(r["backfill"]),
+        })
+
+    if not details:
+        return None
+
+    def _summ(items):
+        w = sum(1 for d in items if d["outcome"] == "win")
+        t = sum(1 for d in items if d["outcome"] == "tie")
+        l = sum(1 for d in items if d["outcome"] == "loss")
+        n = len(items)
+        return {
+            "total": n, "win": w, "tie": t, "loss": l,
+            "hit": w + t,
+            "hit_pct": round((w + t) / n * 100),
+            "win_pct": round(w / n * 100),
+        }
+
+    strong = [d for d in details if d["gap"] >= GAP_STRONG]
+    return {
+        "overall": _summ(details),
+        "strong": _summ(strong) if strong else None,
+        "gap_min": gap_min,
+        "gap_strong": GAP_STRONG,
+        "details": details,
+        "has_backfill": any(d["backfill"] for d in details),
+    }

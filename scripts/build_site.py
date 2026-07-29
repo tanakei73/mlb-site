@@ -10,7 +10,12 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from db import connect
-from first_inning import predict_first_inning
+from first_inning import (
+    predict_first_inning,
+    save_first_inning_snapshot,
+    first_inning_accuracy,
+)
+from model_v2 import ModelData, predict_v2, expected_hit_rate
 from predict import predict
 from signals import pitcher_form, pitcher_form_badge, starter_ranking
 from venue_master import venue_short
@@ -410,7 +415,14 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
         g["away_form_badge"] = pitcher_form_badge(pitcher_form(g.get("away_pitcher_id")))
         g["home_form_badge"] = pitcher_form_badge(pitcher_form(g.get("home_pitcher_id")))
         g["first_inning"] = predict_first_inning(g)
+        # 試合前の予想を凍結保存(後で1回の実績と照合する的中率トラッカー用)
+        if g["first_inning"]:
+            now = dt.datetime.now(JST).isoformat(timespec="seconds")
+            save_first_inning_snapshot(g["game_pk"], g["first_inning"], now)
         today_games.append(g)
+
+    # 検証済みモデル(model_v2)による「本命/注目」ピック
+    picks = _build_picks(today_games)
 
     # 「直近・進行中の試合」予想 vs 実績
     # 時差の罠を避けるため、game_date ではなく game_datetime(実時刻)ベースで
@@ -472,6 +484,12 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
             "games": games,
         })
 
+    # 第一イニング予想 的中率トラッカー
+    # 真の事前スナップショットが無い直近Final試合は、現在データで事後推定して穴埋め
+    # (team_first_score/投手splitは累積なので1試合の寄与は僅少 ≈ 近似として妥当)。
+    _backfill_first_inning_snapshots()
+    fi_tracker = first_inning_accuracy()
+
     jst_start = today  # 米国officialDateは JST だと当日深夜〜翌深夜
     jst_end = today + dt.timedelta(days=1)
     render(env, "index.html", {
@@ -480,11 +498,74 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
         "today_label_us": today.strftime("%Y年%m月%d日"),
         "today_window_jst": f"JST {jst_start.strftime('%m/%d')} 深夜 〜 {jst_end.strftime('%m/%d')} 夜",
         "today_games": today_games,
+        "picks": picks,
         "yesterday_games": yesterday_games,
         "pred_summary": pred_summary,
+        "fi_tracker": fi_tracker,
         "divisions": flat_divs,
         "recent_games": recent_games,
     }, SITE / "index.html")
+
+
+def _build_picks(games: list[dict]) -> dict | None:
+    """検証済みモデル(model_v2)で今後の試合を確信度順に並べ、本命/注目を選ぶ。
+
+    バックテスト(1328試合・リーク無し)で確信度が高いほど的中率も高いことを
+    確認済み。閾値と実測的中率は model_v2 に定義。
+    """
+    data = ModelData()
+    scored = []
+    for g in games:
+        p = predict_v2(g, data)
+        if not p:
+            continue
+        fav_home = p["fav_side"] == "home"
+        scored.append({
+            "game": g,
+            "p": p,
+            "fav_ja": g["home_name_ja"] if fav_home else g["away_name_ja"],
+            "fav_abbr": g["home_abbr"] if fav_home else g["away_abbr"],
+            "opp_ja": g["away_name_ja"] if fav_home else g["home_name_ja"],
+            "fav_is_home": fav_home,
+            "fav_pitcher": g.get("home_pitcher") if fav_home else g.get("away_pitcher"),
+            "opp_pitcher": g.get("away_pitcher") if fav_home else g.get("home_pitcher"),
+            "fav_sp_ra9": p["home_sp_ra9"] if fav_home else p["away_sp_ra9"],
+            "opp_sp_ra9": p["away_sp_ra9"] if fav_home else p["home_sp_ra9"],
+            "hit_rate": expected_hit_rate(p["confidence"]),
+        })
+    if not scored:
+        return None
+    scored.sort(key=lambda x: -x["p"]["confidence"])
+    confident_n = sum(1 for s in scored if s["p"]["tier"] == "confident")
+    watch_n = sum(1 for s in scored if s["p"]["tier"] == "watch")
+    # 基準を満たす試合が無くても上位は見せる(「今日は本命なし」も有用な情報)
+    qualified = [s for s in scored if s["p"]["tier"]]
+    return {
+        "items": qualified if qualified else scored[:6],
+        "confident_n": confident_n,
+        "watch_n": watch_n,
+        "none_qualified": not qualified,
+        "total": len(scored),
+    }
+
+
+def _backfill_first_inning_snapshots() -> None:
+    """スナップショット未保存かつ linescore がある Final 試合を、現在データで
+    事後推定して保存(backfill=1)。既存の真スナップ(事前予想)は INSERT OR IGNORE
+    で温存される。対象は linescore が存在する試合に自然に限定される。"""
+    with connect() as conn:
+        rows = [dict(r) for r in conn.execute(
+            """SELECT g.game_pk, g.away_team_id, g.home_team_id,
+                      g.away_pitcher_id, g.home_pitcher_id
+               FROM games g
+               JOIN boxscore_linescore b ON g.game_pk = b.game_pk
+               LEFT JOIN first_inning_predictions f ON g.game_pk = f.game_pk
+               WHERE g.status = 'Final' AND f.game_pk IS NULL""")]
+    for g in rows:
+        fi = predict_first_inning(g)
+        if fi:
+            # predicted_at は空 (事前予想ではないため), backfill=1
+            save_first_inning_snapshot(g["game_pk"], fi, "", backfill=True)
 
 
 def build_standings(env, base_ctx, leagues) -> None:

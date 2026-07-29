@@ -297,6 +297,80 @@ td.fi-bar-cell { min-width: 120px; padding: 4px 8px; }
 .fi-bar-cell .fi-nums .away { color: var(--color-win); font-weight: 700; }
 .fi-bar-cell .fi-nums .home { color: var(--color-loss); font-weight: 700; }
 
+/* 本命ピック */
+.picks-table .pick-tier { white-space: nowrap; }
+.picks-table .tier-a {
+  background: var(--color-win); color: #fff;
+  font-size: 11px; font-weight: 700;
+  padding: 2px 7px; border-radius: 3px;
+}
+.picks-table .tier-b {
+  border: 1px solid var(--color-win); color: var(--color-win);
+  font-size: 11px; font-weight: 700;
+  padding: 1px 6px; border-radius: 3px;
+}
+.picks-table .tier-c {
+  font-size: 11px; color: var(--color-text-sub);
+}
+.picks-none, .picks-summary {
+  font-size: 12px; line-height: 1.7;
+  background: var(--color-bg-alt);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 4px 0 14px;
+}
+tr.pick-confident { background: rgba(58, 122, 90, .07); }
+.picks-table .pick-conf { font-weight: 800; font-size: 15px; }
+.picks-table .pick-hit { color: var(--color-win); font-weight: 700; }
+.picks-table .pick-side {
+  font-size: 10px; color: var(--color-text-sub);
+  margin-left: 4px;
+}
+.picks-table .pick-opp { color: var(--color-text-sub); font-size: 12px; }
+.picks-table .pick-why { font-size: 11px; color: var(--color-text-sub); line-height: 1.5; }
+.picks-table .why-item { display: inline-block; margin-right: 8px; }
+.picks-table .why-prov {
+  display: inline-block; font-size: 10px;
+  background: var(--color-bg-alt); border: 1px solid var(--color-border);
+  color: var(--color-text-sub); padding: 0 5px; border-radius: 3px;
+}
+
+/* 第一イニング予想 的中率トラッカー */
+.fi-track-cards { display: flex; gap: 12px; flex-wrap: wrap; margin: 4px 0 14px; }
+.fi-track-hero {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px 18px;
+  background: var(--color-bg-alt);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 160px;
+}
+.fi-track-hero.sub { opacity: .85; }
+.fi-track-pct {
+  font-family: var(--font-num);
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--color-win);
+}
+.fi-track-pct .unit { font-size: 20px; font-weight: 700; margin-left: 1px; }
+.fi-track-cap { font-size: 11px; color: var(--color-text-sub); text-align: center; margin-top: 6px; line-height: 1.5; }
+.fi-track-wdl { font-family: var(--font-num); font-size: 13px; margin-top: 6px; }
+.fi-track-wdl .w { color: var(--color-win); font-weight: 700; }
+.fi-track-wdl .d { color: var(--color-text-sub); }
+.fi-track-wdl .l { color: var(--color-loss); font-weight: 700; }
+.fi-track-table .fi-date { font-family: var(--font-num); font-size: 12px; white-space: nowrap; }
+.fi-track-table .fav { font-weight: 600; }
+.fi-track-table .card { font-size: 12px; }
+.fi-bf { color: var(--color-text-sub); font-size: 11px; margin-left: 2px; cursor: help; }
+.fi-verdict { white-space: nowrap; font-size: 12px; font-weight: 700; }
+.fi-verdict .v-win { color: var(--color-win); }
+.fi-verdict .v-tie { color: var(--color-text-sub); }
+.fi-verdict .v-loss { color: var(--color-loss); }
+
 .pred-summary {
   font-size: 12px;
   font-weight: 400;

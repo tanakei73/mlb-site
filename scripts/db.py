@@ -74,6 +74,16 @@ CREATE TABLE IF NOT EXISTS game_predictions (
     away_prob      INTEGER
 );
 
+-- 第一イニング予想の事前スナップショット (試合前に凍結し、後で1回の実績と照合)
+CREATE TABLE IF NOT EXISTS first_inning_predictions (
+    game_pk        INTEGER PRIMARY KEY,
+    predicted_at   TEXT,
+    away_ahead     INTEGER,     -- 1回終了時ビジターリードの確率(%)
+    tie            INTEGER,     -- 五分(0-0含む)の確率(%)
+    home_ahead     INTEGER,     -- ホームリードの確率(%)
+    backfill       INTEGER DEFAULT 0   -- 1=事後推定(近似), 0=真の事前スナップショット
+);
+
 -- チームの状況別成績 (standings splitRecords / expectedRecords)
 CREATE TABLE IF NOT EXISTS team_splits (
     team_id        INTEGER,

@@ -57,6 +57,51 @@
   {% endif %}
 </section>
 
+{% if picks %}
+<section>
+  <h2>本命ピック <small class="header-meta">検証済みモデルが選んだ「勝ちそうな試合」</small></h2>
+  {% if picks['none_qualified'] %}
+  <p class="picks-none">今後の{{ picks['total'] }}試合に<strong>基準を満たす試合はありません</strong>（本命=確信度65%以上、注目=62%以上）。無理に選ばず「見送り」も結果のひとつです。参考として確信度上位を掲載します。先発が発表されると数字が動くので、更新後に再度ご確認ください。</p>
+  {% else %}
+  <p class="picks-summary">今後の{{ picks['total'] }}試合から <span class="tier-a">★本命</span> <strong>{{ picks['confident_n'] }}試合</strong> / <span class="tier-b">◎注目</span> <strong>{{ picks['watch_n'] }}試合</strong> を選出。</p>
+  {% endif %}
+  <div class="table-wrap">
+  <table class="games picks-table">
+    <thead>
+      <tr><th>格付</th><th>JST 開始</th><th>本命</th><th>相手</th><th>確信度</th><th>過去の的中率</th><th>根拠</th></tr>
+    </thead>
+    <tbody>
+    {% for s in picks['items'] %}
+      <tr class="{% if s.p.tier=='confident' %}pick-confident{% else %}pick-watch{% endif %}">
+        <td class="pick-tier">
+          {% if s.p.tier=='confident' %}<span class="tier-a">★ 本命</span>
+          {% elif s.p.tier=='watch' %}<span class="tier-b">◎ 注目</span>
+          {% else %}<span class="tier-c">基準未満</span>{% endif %}
+        </td>
+        <td class="time">{{ s.game.start_jst }}</td>
+        <td class="team-cell">
+          <a href="{{ root }}teams/{{ s.fav_abbr|lower }}.html"><strong>{{ s.fav_ja }}</strong></a>
+          <span class="pick-side">{% if s.fav_is_home %}ホーム{% else %}ビジター{% endif %}</span>
+        </td>
+        <td class="pick-opp">{{ s.opp_ja }}</td>
+        <td class="score pick-conf">{{ s.p.confidence }}%</td>
+        <td class="score">{% if s.hit_rate %}<span class="pick-hit">{{ s.hit_rate }}%</span>{% else %}<span class="muted">-</span>{% endif %}</td>
+        <td class="pick-why">
+          <span class="why-item">地力 {{ '%+.1f'|format(s.p.team_edge if s.fav_is_home else -s.p.team_edge) }}pt</span>
+          {% if s.p.provisional %}<span class="why-prov" title="先発未発表のためリーグ平均で計算した暫定値">先発未定</span>
+          {% else %}<span class="why-item">先発 {{ s.fav_pitcher }} (失点{{ s.fav_sp_ra9 }}) vs {{ s.opp_pitcher }} ({{ s.opp_sp_ra9 }})</span>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="meta-note">※<strong>1328試合のバックテスト</strong>（各試合の直前までの情報だけで予想し直し、時系列で訓練/検証を分離）で選ばれたモデルによるピックです。構成は「チーム地力（ピタゴラス勝率）＋ホーム補正＋先発投手の失点率」。未知データでの的中率は54.5%（同期間「常にホーム」51.7%、チーム成績のみ52.8%）。<br>
+  確信度で絞ると的中率が上がることを確認しており、<span class="tier-a">★本命</span>=確信度65%以上（過去実測<strong>68.5%</strong>的中・週6.3試合）、<span class="tier-b">◎注目</span>=62%以上（<strong>66.3%</strong>・週11.6試合）。「過去の的中率」列は、その確信度帯で実際に何%当たったかの実測値です。<br>
+  救援投手・直近の勢いも試しましたが、検証データで精度が落ちた（過学習）ため採用していません。野球は1試合の分散が大きく、確信度70%超はシーズンを通しても稀です。</p>
+</section>
+{% endif %}
+
 {% set fi_games = today_games | selectattr('first_inning') | list %}
 {% if fi_games %}
 <section>
@@ -100,6 +145,51 @@
   </table>
   </div>
   <p class="meta-note">※「1回リード予想」は<span style="color:var(--color-win)">■</span>ビジターリード / <span style="color:#bbb">■</span>五分（0-0含む）/ <span style="color:var(--color-loss)">■</span>ホームリードの確率。各先発の1回失点をポアソン分布でモデル化し、打線の初回得点力とリーグ平均で合成。試合前のみ表示。</p>
+</section>
+{% endif %}
+
+{% if fi_tracker %}
+{% set tk = fi_tracker %}
+<section>
+  <h2>第一イニング予想 的中率 <small class="header-meta">「差がついた予想」で有利側が初回に負けなかったか</small></h2>
+  <div class="fi-track-cards">
+    <div class="fi-track-hero">
+      <div class="fi-track-pct">{{ tk.overall.hit_pct }}<span class="unit">%</span></div>
+      <div class="fi-track-cap">差{{ tk.gap_min }}%以上の予想 {{ tk.overall.total }}試合<br>的中 {{ tk.overall.hit }}（負けなければ的中）</div>
+      <div class="fi-track-wdl"><span class="w">{{ tk.overall.win }}勝</span> <span class="d">{{ tk.overall.tie }}分</span> <span class="l">{{ tk.overall.loss }}敗</span></div>
+    </div>
+    {% if tk.strong %}
+    <div class="fi-track-hero sub">
+      <div class="fi-track-pct">{{ tk.strong.hit_pct }}<span class="unit">%</span></div>
+      <div class="fi-track-cap">はっきり差がついた予想<br>差{{ tk.gap_strong }}%以上 {{ tk.strong.total }}試合</div>
+      <div class="fi-track-wdl"><span class="w">{{ tk.strong.win }}勝</span> <span class="d">{{ tk.strong.tie }}分</span> <span class="l">{{ tk.strong.loss }}敗</span></div>
+    </div>
+    {% endif %}
+  </div>
+  <div class="table-wrap">
+  <table class="games fi-track-table">
+    <thead>
+      <tr><th>日付</th><th>カード</th><th>有利予想</th><th>差</th><th>実際の1回</th><th>判定</th></tr>
+    </thead>
+    <tbody>
+    {% for d in tk.details[:15] %}
+      <tr class="{% if d.outcome=='win' %}game-win{% elif d.outcome=='loss' %}game-loss{% else %}game-nd{% endif %}">
+        <td class="fi-date">{{ d.date[5:] }}{% if d.backfill %}<span class="fi-bf" title="事後推定(近似)">≈</span>{% endif %}</td>
+        <td class="card"><a href="{{ root }}game/{{ d.game_pk }}.html">{{ d.away_ja }} @ {{ d.home_ja }}</a></td>
+        <td class="fav">{{ d.fav_ja }}</td>
+        <td class="score">{{ d.gap }}%</td>
+        <td class="score">{{ d.away_runs }}-{{ d.home_runs }}</td>
+        <td class="fi-verdict">
+          {% if d.outcome=='win' %}<span class="v-win">◎ 先制</span>
+          {% elif d.outcome=='tie' %}<span class="v-tie">○ 五分</span>
+          {% else %}<span class="v-loss">● 失点</span>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="meta-note">※両先発・両打線から出した「1回のリード予想」で差が {{ tk.gap_min }}%以上ついたカードだけを対象に、有利と出た側が実際の1回で<strong>リード維持 or 0-0（＝負けなかった）</strong>なら的中とカウント（◎先制／○五分＝的中、●失点＝外れ）。五分予想のカードは対象外。{% if tk.has_backfill %}日付の <span class="fi-bf">≈</span> は機能追加前の試合を現在データで事後推定した近似値。今後の試合は試合前スナップショットで厳密に記録されます。{% endif %}</p>
 </section>
 {% endif %}
 
