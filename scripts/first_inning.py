@@ -225,9 +225,11 @@ def first_inning_baseline() -> Optional[dict]:
         # 「負けなければ的中」の基準値
         "nolose_random": round((tie + (away + home) / 2) / n * 100, 1),
         "nolose_home": round((tie + home) / n * 100, 1),
+        "nolose_away": round((tie + away) / n * 100, 1),
         # 「先制できた率」の基準値
         "strike_random": round((away + home) / 2 / n * 100, 1),
         "strike_home": round(home / n * 100, 1),
+        "strike_away": round(away / n * 100, 1),
     }
 
 
@@ -306,6 +308,27 @@ def first_inning_accuracy(gap_min: int = GAP_MIN) -> Optional[dict]:
     overall = _summ(details)
     strong_s = _summ(strong) if strong else None
     base = first_inning_baseline()
+
+    # 有利予想がホーム側かビジター側かで分けた内訳。
+    # 1回はホームの方が先制しやすい(裏の攻撃)ため、基準値も side ごとに変わる。
+    def _side_split(items):
+        out = {}
+        for is_home, key in ((True, "home"), (False, "away")):
+            sub = [d for d in items if d["fav_home"] == is_home]
+            if not sub:
+                continue
+            s = _summ(sub)
+            if base:
+                s["edge_nolose"] = round(
+                    s["hit_pct"] - base["nolose_home" if is_home else "nolose_away"], 1)
+                s["edge_strike"] = round(
+                    s["win_pct"] - base["strike_home" if is_home else "strike_away"], 1)
+            out[key] = s
+        return out
+
+    split = {"gap_min": _side_split(details)}
+    if strong:
+        split["gap_strong"] = _side_split(strong)
     # モデルの実質的な上積み(基準値との差)
     if base:
         overall["edge_nolose"] = round(overall["hit_pct"] - base["nolose_home"], 1)
@@ -317,6 +340,7 @@ def first_inning_accuracy(gap_min: int = GAP_MIN) -> Optional[dict]:
         "overall": overall,
         "strong": strong_s,
         "baseline": base,
+        "split": split,
         "gap_min": gap_min,
         "gap_strong": GAP_STRONG,
         "details": details,

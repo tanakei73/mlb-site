@@ -388,6 +388,18 @@ tr.pick-confident { background: rgba(58, 122, 90, .07); }
 .fi-base-table td:first-child { font-size: 12px; }
 tr.fi-base-ref td { color: var(--color-text-sub); }
 tr.fi-base-model { background: rgba(58, 122, 90, .07); }
+tr.fi-base-sub td { font-size: 12px; color: var(--color-text); }
+tr.fi-base-sub td:first-child { color: var(--color-text-sub); }
+tr.fi-best { background: rgba(58, 122, 90, .13); }
+tr.fi-best td { font-weight: 700; }
+.fi-n { font-family: var(--font-num); font-size: 10px; color: var(--color-text-sub); margin-left: 2px; }
+.fi-best-tag {
+  display: inline-block;
+  font-size: 10px; font-weight: 700;
+  background: var(--color-win); color: #fff;
+  padding: 1px 6px; border-radius: 3px;
+  margin-left: 4px;
+}
 .fi-edge {
   font-family: var(--font-num);
   font-size: 10px;

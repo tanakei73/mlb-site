@@ -202,6 +202,18 @@
         <td class="score"><strong>{{ tk.overall.win_pct }}%</strong>
           {% if tk.overall.edge_strike is defined %}<span class="fi-edge">{{ '%+.1f'|format(tk.overall.edge_strike) }}</span>{% endif %}</td>
       </tr>
+      {% if tk.split and tk.split.gap_min %}
+        {% for side, label in [('home','　└ うち ホームが有利'), ('away','　└ うち ビジターが有利')] %}
+        {% set s = tk.split.gap_min[side] %}
+        {% if s %}
+        <tr class="fi-base-sub">
+          <td>{{ label }} <span class="fi-n">{{ s.total }}試合</span></td>
+          <td class="score">{{ s.hit_pct }}%{% if s.edge_nolose is defined %}<span class="fi-edge">{{ '%+.1f'|format(s.edge_nolose) }}</span>{% endif %}</td>
+          <td class="score">{{ s.win_pct }}%{% if s.edge_strike is defined %}<span class="fi-edge">{{ '%+.1f'|format(s.edge_strike) }}</span>{% endif %}</td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      {% endif %}
       {% if tk.strong %}
       <tr class="fi-base-model">
         <td><strong>モデル（差{{ tk.gap_strong }}%以上）</strong></td>
@@ -210,12 +222,25 @@
         <td class="score"><strong>{{ tk.strong.win_pct }}%</strong>
           {% if tk.strong.edge_strike is defined %}<span class="fi-edge">{{ '%+.1f'|format(tk.strong.edge_strike) }}</span>{% endif %}</td>
       </tr>
+      {% if tk.split and tk.split.gap_strong %}
+        {% for side, label in [('home','　└ うち ホームが有利'), ('away','　└ うち ビジターが有利')] %}
+        {% set s = tk.split.gap_strong[side] %}
+        {% if s %}
+        <tr class="fi-base-sub {% if side=='home' %}fi-best{% endif %}">
+          <td>{{ label }} <span class="fi-n">{{ s.total }}試合</span>{% if side=='home' %} <span class="fi-best-tag">最も確率が高い条件</span>{% endif %}</td>
+          <td class="score">{{ s.hit_pct }}%{% if s.edge_nolose is defined %}<span class="fi-edge">{{ '%+.1f'|format(s.edge_nolose) }}</span>{% endif %}</td>
+          <td class="score">{{ s.win_pct }}%{% if s.edge_strike is defined %}<span class="fi-edge">{{ '%+.1f'|format(s.edge_strike) }}</span>{% endif %}</td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      {% endif %}
       {% endif %}
     </tbody>
   </table>
   </div>
-  <p class="meta-note fi-base-note">※上段2行が<strong>基準値</strong>（予想せずに選んだ場合）。1回は全{{ bl.games }}試合のうち<strong>{{ bl.tie_pct }}%が0-0の引き分け</strong>で終わるため、「負けなければ的中」は何もしなくても{{ bl.nolose_home }}%程度になります。緑の数字はモデルの<strong>実質的な上積み</strong>です。<br>
-  そのため「負けなければ的中」の上積みは限定的で、モデルの実力がはっきり出るのは<strong>「実際に先制できた率」</strong>の方（基準{{ bl.strike_home }}%に対し、差{{ tk.gap_strong }}%以上で{{ tk.strong.win_pct if tk.strong else '-' }}%）。「この試合は初回に動く／どちらが動かすか」の判断に向いた指標です。</p>
+  <p class="meta-note fi-base-note">※上段2行が<strong>基準値</strong>（予想せずに選んだ場合）。1回は全{{ bl.games }}試合のうち<strong>{{ bl.tie_pct }}%が0-0の引き分け</strong>で終わるため、「負けなければ的中」は何もしなくても{{ bl.nolose_home }}%程度になります。緑の数字はモデルの<strong>実質的な上積み</strong>で、ホーム有利の行は「常にホーム」、ビジター有利の行は「常にビジター」をそれぞれの基準にしています。<br>
+  そのため「負けなければ的中」の上積みは限定的で、モデルの実力がはっきり出るのは<strong>「実際に先制できた率」</strong>の方です。<br>
+  <strong>ホーム/ビジター別の内訳について:</strong> 1回はホームの方が先制しやすい（裏の攻撃なので基準値も{{ bl.strike_home }}% vs {{ bl.strike_away }}%と差がある）。そのうえで<strong>有利予想がホーム側の試合は先制率がさらに高い</strong>傾向が、差{{ tk.gap_min }}%以上・差{{ tk.gap_strong }}%以上の両方で一貫して出ています。ただし各条件100〜130試合規模なので、この差は統計的にはまだ確証には至りません（偶然でも2割程度は起こりうる範囲）。「負けなければ的中」の方はホーム/ビジターでほぼ差がなく、誤差の範囲です。</p>
   {% endif %}
   <div class="table-wrap">
   <table class="games fi-track-table">
