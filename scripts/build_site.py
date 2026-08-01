@@ -16,6 +16,7 @@ from first_inning import (
     first_inning_accuracy,
 )
 from model_v2 import ModelData, predict_v2, expected_hit_rate
+from pick_record import pick_record
 from signals import pitcher_form, pitcher_form_badge, starter_ranking
 from venue_master import venue_short
 
@@ -425,7 +426,9 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
         today_games.append(g)
 
     # 検証済みモデル(model_v2)による「本命/注目」ピック
-    picks = _build_picks(today_games)
+    # 実績は保存せず、過去試合を毎回リーク無しで再現して集計する
+    pick_rec = pick_record()
+    picks = _build_picks(today_games, pick_rec)
 
     # 「直近・進行中の試合」予想 vs 実績
     # 時差の罠を避けるため、game_date ではなく game_datetime(実時刻)ベースで
@@ -502,6 +505,7 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
         "today_window_jst": f"JST {jst_start.strftime('%m/%d')} 深夜 〜 {jst_end.strftime('%m/%d')} 夜",
         "today_games": today_games,
         "picks": picks,
+        "pick_rec": pick_rec,
         "yesterday_games": yesterday_games,
         "pred_summary": pred_summary,
         "fi_tracker": fi_tracker,
@@ -510,11 +514,27 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
     }, SITE / "index.html")
 
 
-def _build_picks(games: list[dict]) -> dict | None:
+def _tier_hit_rate(tier: str | None, record: dict | None) -> float | None:
+    """その格付けの今季実測的中率(十分な試合数がある場合のみ)。"""
+    if not tier or not record:
+        return None
+    s = record.get(tier)
+    return s["pct"] if s and s["total"] >= 30 else None
+
+
+def _tier_n(tier: str | None, record: dict | None) -> int | None:
+    if not tier or not record:
+        return None
+    s = record.get(tier)
+    return s["total"] if s and s["total"] >= 30 else None
+
+
+def _build_picks(games: list[dict], record: dict | None = None) -> dict | None:
     """検証済みモデル(model_v2)で今後の試合を確信度順に並べ、本命/注目を選ぶ。
 
     バックテスト(1328試合・リーク無し)で確信度が高いほど的中率も高いことを
-    確認済み。閾値と実測的中率は model_v2 に定義。
+    確認済み。閾値は model_v2 に定義。「過去の的中率」は pick_record が
+    毎回再計算する今季の実測値を使う。
     """
     data = ModelData()
     scored = []
@@ -534,7 +554,10 @@ def _build_picks(games: list[dict]) -> dict | None:
             "opp_pitcher": g.get("away_pitcher") if fav_home else g.get("home_pitcher"),
             "fav_sp_ra9": p["home_sp_ra9"] if fav_home else p["away_sp_ra9"],
             "opp_sp_ra9": p["away_sp_ra9"] if fav_home else p["home_sp_ra9"],
-            "hit_rate": expected_hit_rate(p["confidence"]),
+            # 「過去の的中率」は今季の実測値(pick_recordが毎回再計算)を優先。
+            # まだ実績が無い時期だけバックテスト値にフォールバックする。
+            "hit_rate": _tier_hit_rate(p["tier"], record) or expected_hit_rate(p["confidence"]),
+            "hit_n": _tier_n(p["tier"], record),
         })
     if not scored:
         return None

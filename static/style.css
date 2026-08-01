@@ -336,6 +336,18 @@ tr.pick-confident { background: rgba(58, 122, 90, .07); }
   color: var(--color-text-sub); padding: 0 5px; border-radius: 3px;
 }
 
+/* 本命ピックの実績 */
+.pick-rec-head {
+  font-size: 14px;
+  margin: 22px 0 8px;
+  padding-left: 8px;
+  border-left: 3px solid var(--color-border);
+}
+.pick-rec-head .header-meta { font-weight: 400; margin-left: 6px; }
+.pick-rec-table td:first-child { white-space: nowrap; }
+.rec-up { color: var(--color-win); font-weight: 700; font-family: var(--font-num); }
+.rec-down { color: var(--color-loss); font-weight: 700; font-family: var(--font-num); }
+
 /* 第一イニング予想 的中率トラッカー */
 .fi-track-cards { display: flex; gap: 12px; flex-wrap: wrap; margin: 4px 0 14px; }
 .fi-track-hero {

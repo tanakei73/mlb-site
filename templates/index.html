@@ -86,7 +86,7 @@
         </td>
         <td class="pick-opp">{{ s.opp_ja }}</td>
         <td class="score pick-conf">{{ s.p.confidence }}%</td>
-        <td class="score">{% if s.hit_rate %}<span class="pick-hit">{{ s.hit_rate }}%</span>{% else %}<span class="muted">-</span>{% endif %}</td>
+        <td class="score">{% if s.hit_rate %}<span class="pick-hit">{{ s.hit_rate }}%</span>{% if s.hit_n %}<span class="fi-n">{{ s.hit_n }}戦</span>{% endif %}{% else %}<span class="muted">-</span>{% endif %}</td>
         <td class="pick-why">
           <span class="why-item">地力 {{ '%+.1f'|format(s.p.team_edge if s.fav_is_home else -s.p.team_edge) }}pt</span>
           {% if s.p.provisional %}<span class="why-prov" title="先発未発表のためリーグ平均で計算した暫定値">先発未定</span>
@@ -100,6 +100,58 @@
   <p class="meta-note">※<strong>1328試合のバックテスト</strong>（各試合の直前までの情報だけで予想し直し、時系列で訓練/検証を分離）で選ばれたモデルによるピックです。構成は「チーム地力（ピタゴラス勝率）＋ホーム補正＋先発投手の失点率」。未知データでの的中率は54.5%（同期間「常にホーム」51.7%、チーム成績のみ52.8%）。<br>
   確信度で絞ると的中率が上がることを確認しており、<span class="tier-a">★本命</span>=確信度65%以上（過去実測<strong>68.5%</strong>的中・週6.3試合）、<span class="tier-b">◎注目</span>=62%以上（<strong>66.3%</strong>・週11.6試合）。「過去の的中率」列は、その確信度帯で実際に何%当たったかの実測値です。<br>
   救援投手・直近の勢いも試しましたが、検証データで精度が落ちた（過学習）ため採用していません。野球は1試合の分散が大きく、確信度70%超はシーズンを通しても稀です。</p>
+
+  {% if pick_rec %}
+  <h3 class="pick-rec-head">今季の実績 <small class="header-meta">過去の全試合を毎回リーク無しで再現して集計</small></h3>
+  <div class="table-wrap">
+  <table class="games pick-rec-table">
+    <thead>
+      <tr><th>格付</th><th>試合数</th><th>成績</th><th>的中率</th><th>バックテスト期待値との差</th></tr>
+    </thead>
+    <tbody>
+      {% for key, label, cls in [('confident','★ 本命（確信度'~pick_rec.confident_threshold~'%以上）','tier-a'), ('watch','◎ 注目（'~pick_rec.watch_threshold~'〜'~(pick_rec.confident_threshold-1)~'%）','tier-b')] %}
+      {% set s = pick_rec[key] %}
+      {% if s %}
+      <tr>
+        <td><span class="{{ cls }}">{{ label }}</span></td>
+        <td class="score">{{ s.total }}</td>
+        <td class="score">{{ s.win }}勝{{ s.loss }}敗</td>
+        <td class="score"><strong>{{ s.pct }}%</strong></td>
+        <td class="score">
+          <span class="{% if s.diff >= 0 %}rec-up{% else %}rec-down{% endif %}">{{ '%+.1f'|format(s.diff) }}pt</span>
+          <span class="fi-n">期待{{ s.expected }}%</span>
+        </td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="meta-note">※「何を本命にしたか」を保存する代わりに、<strong>過去の全試合について「その試合の直前までのデータだけで予想したら何を選んでいたか」を毎回再現</strong>して集計しています（バックテストと同じ手法なので情報の先取りはありません）。試合が終わるたびに自動で更新されます。<br>
+  現状、実績はバックテストの期待値をやや下回っています。期待値の方が112試合・98試合より小さい母数で出した推定だったためで、<strong>今表示されている実測値の方が信頼できます</strong>。特に<span class="tier-b">◎注目</span>帯は期待を下回っており、<strong>62〜64%の帯は過信しない方が良い</strong>と考えてください。</p>
+
+  {% if pick_rec.recent %}
+  <div class="table-wrap">
+  <table class="games pick-rec-table">
+    <thead><tr><th>結果</th><th>日付</th><th>格付</th><th>本命</th><th>相手</th><th>確信度</th><th>スコア</th></tr></thead>
+    <tbody>
+    {% for p in pick_rec.recent %}
+      <tr class="{% if p.won %}game-win{% else %}game-loss{% endif %}">
+        <td class="fi-verdict">{% if p.won %}<span class="v-win">○ 的中</span>{% else %}<span class="v-loss">● 外れ</span>{% endif %}</td>
+        <td class="fi-date">{{ p.date[5:] }}</td>
+        <td>{% if p.tier=='confident' %}<span class="tier-a">★</span>{% else %}<span class="tier-b">◎</span>{% endif %}</td>
+        <td class="team-cell"><a href="{{ root }}teams/{{ p.fav_abbr|lower }}.html">{{ p.fav_ja }}</a><span class="pick-side">{% if p.fav_is_home %}ホーム{% else %}ビジター{% endif %}</span></td>
+        <td class="pick-opp">{{ p.opp_ja }}</td>
+        <td class="score">{{ p.confidence }}%</td>
+        <td class="score">{{ p.score }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="meta-note">※直近のピックと結果（スコアは本命側から見た点数）。</p>
+  {% endif %}
+  {% endif %}
 </section>
 {% endif %}
 
