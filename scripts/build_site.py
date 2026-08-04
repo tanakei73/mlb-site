@@ -506,12 +506,54 @@ def build_index(env, base_ctx, today, leagues, flat_divs) -> None:
         "today_games": today_games,
         "picks": picks,
         "pick_rec": pick_rec,
+        "trades": _build_trades(),
         "yesterday_games": yesterday_games,
         "pred_summary": pred_summary,
         "fi_tracker": fi_tracker,
         "divisions": flat_divs,
         "recent_games": recent_games,
     }, SITE / "index.html")
+
+
+def _build_trades(limit: int = 12) -> dict | None:
+    """直近のトレードのうち主力級を読み込み、チーム別の入れ替わりも集計する。
+
+    モデルのチーム地力はシーズン通算の得失点ベースなので、主力が動いた直後は
+    評価が実態から遅れる。その注意喚起のための情報。
+    """
+    with connect() as conn:
+        rows = [dict(r) for r in conn.execute(
+            """SELECT t.*, tf.name_ja from_ja, tf.abbreviation from_abbr,
+                      tt.name_ja to_ja, tt.abbreviation to_abbr
+               FROM player_trades t
+               LEFT JOIN teams tf ON t.from_team_id = tf.team_id
+               LEFT JOIN teams tt ON t.to_team_id = tt.team_id
+               ORDER BY t.impact DESC""")]
+    if not rows:
+        return None
+
+    # チーム別の入り/出
+    moves: dict = {}
+    for r in rows:
+        for tid, ja, key in ((r["to_team_id"], r["to_ja"], "in"),
+                             (r["from_team_id"], r["from_ja"], "out")):
+            if not tid:
+                continue
+            m = moves.setdefault(tid, {"name_ja": ja, "in": 0, "out": 0,
+                                       "in_p": 0, "out_p": 0})
+            m[key] += 1
+            if r["role"] == "P":
+                m[key + "_p"] += 1
+    busiest = sorted(moves.values(), key=lambda m: -(m["in"] + m["out"]))[:8]
+
+    return {
+        "notable": rows[:limit],
+        "total": len(rows),
+        "pitchers": sum(1 for r in rows if r["role"] == "P"),
+        "batters": sum(1 for r in rows if r["role"] == "B"),
+        "busiest": busiest,
+        "latest_date": max(r["trade_date"] for r in rows if r["trade_date"]),
+    }
 
 
 def _tier_hit_rate(tier: str | None, record: dict | None) -> float | None:

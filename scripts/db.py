@@ -74,6 +74,19 @@ CREATE TABLE IF NOT EXISTS game_predictions (
     away_prob      INTEGER
 );
 
+-- 選手のトレード (トレード期限前後のロースター変動を把握するため)
+CREATE TABLE IF NOT EXISTS player_trades (
+    player_id      INTEGER,
+    trade_date     TEXT,
+    player_name    TEXT,
+    from_team_id   INTEGER,
+    to_team_id     INTEGER,
+    role           TEXT,      -- 'P'=投手 / 'B'=野手
+    summary        TEXT,      -- 移籍時点の今季成績(表示用)
+    impact         REAL,      -- 主力度(投手=投球回, 野手=打席/10)。並べ替え用
+    PRIMARY KEY (player_id, trade_date)
+);
+
 -- 第一イニング予想の事前スナップショット (試合前に凍結し、後で1回の実績と照合)
 CREATE TABLE IF NOT EXISTS first_inning_predictions (
     game_pk        INTEGER PRIMARY KEY,

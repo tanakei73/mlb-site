@@ -705,6 +705,73 @@ def fetch_boxscore_for_game(game_pk: int) -> None:
         conn.commit()
 
 
+def fetch_trades(days_back: int = 30) -> None:
+    """直近のトレードを取得し、主力選手のものを成績付きで保存する。
+
+    モデルのチーム地力(ピタゴラス勝率)はシーズン通算の得失点から出しているため、
+    トレード期限で主力が動くと評価が実態から遅れる。その注意喚起を出すための情報。
+    (先発投手は投手個人の失点率を使っているのでモデル側で自動的に追随する)
+
+    成績の問い合わせは選手ごとに1回必要なので、未取得の選手だけを対象にする。
+    """
+    today = dt.datetime.now(JST).date()
+    start = (today - dt.timedelta(days=days_back)).isoformat()
+    data = _get("transactions", startDate=start, endDate=today.isoformat())
+    trades = [t for t in data.get("transactions", [])
+              if t.get("typeCode") == "TR" and (t.get("person") or {}).get("id")]
+
+    with connect() as conn:
+        known = {(r["player_id"], r["trade_date"])
+                 for r in conn.execute("SELECT player_id, trade_date FROM player_trades")}
+
+    rows = []
+    for t in trades:
+        p = t["person"]
+        key = (p["id"], t.get("date"))
+        if key in known:
+            continue
+        role = summary = None
+        impact = 0.0
+        # 投手として実績があるか
+        try:
+            s = _get(f"people/{p['id']}/stats", stats="season", season=SEASON, group="pitching")
+            for sp in s.get("stats", []):
+                for sl in sp.get("splits", []):
+                    st = sl["stat"]
+                    ip = st.get("inningsPitched")
+                    if ip and float(ip) >= 30:
+                        role, impact = "P", float(ip)
+                        summary = f"{ip}回 防御率{st.get('era')} 先発{st.get('gamesStarted', 0)}"
+        except (requests.HTTPError, requests.ConnectionError, ValueError):
+            pass
+        if not role:
+            try:
+                s = _get(f"people/{p['id']}/stats", stats="season", season=SEASON, group="hitting")
+                for sp in s.get("stats", []):
+                    for sl in sp.get("splits", []):
+                        st = sl["stat"]
+                        pa = st.get("plateAppearances")
+                        if pa and int(pa) >= 150:
+                            role, impact = "B", int(pa) / 10
+                            summary = f"{pa}打席 OPS{st.get('ops')} {st.get('homeRuns')}本"
+            except (requests.HTTPError, requests.ConnectionError, ValueError):
+                pass
+        if not role:
+            continue   # 主力級でなければ記録しない
+        rows.append((p["id"], t.get("date"), p.get("fullName"),
+                     (t.get("fromTeam") or {}).get("id"), (t.get("toTeam") or {}).get("id"),
+                     role, summary, impact))
+
+    if rows:
+        with connect() as conn:
+            conn.executemany(
+                """INSERT OR REPLACE INTO player_trades
+                   (player_id, trade_date, player_name, from_team_id, to_team_id,
+                    role, summary, impact) VALUES (?,?,?,?,?,?,?,?)""", rows)
+            conn.commit()
+    print(f"[trades] {len(trades)} trades scanned, {len(rows)} key players saved")
+
+
 def fetch_season_linescores(start: str, end: str) -> None:
     """シーズン全体のイニング別スコアを取得する(軽量版)。
 
@@ -788,6 +855,7 @@ def main() -> None:
     fetch_leaders()
     fetch_japanese_player_stats()
     fetch_starting_pitchers()
+    fetch_trades(days_back=30)
     # 第一イニング予想の的中率トラッカー用に、シーズン全体のイニング別スコアを確保
     fetch_season_linescores(f"{SEASON}-03-15", today.isoformat())
     fetch_recent_boxscores(days_back=3)

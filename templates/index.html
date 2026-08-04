@@ -58,6 +58,58 @@
   {% endif %}
 </section>
 
+{% if trades %}
+<section class="trade-section">
+  <h2>トレード期限の動き <small class="header-meta">予想モデルへの影響あり（{{ trades.latest_date }}まで）</small></h2>
+  <div class="trade-alert">
+    <strong>直近30日で主力{{ trades.total }}人が移籍しました</strong>（投手{{ trades.pitchers }}人 / 野手{{ trades.batters }}人）。<br>
+    <strong>先発投手の移籍はモデルが自動で追随します</strong>（予想は投手個人の失点率を使うため、成績は本人について回ります）。<br>
+    一方<strong>チームの地力評価はシーズン通算の得失点</strong>から算出しているため、<strong>移籍直後は実態から数週間ほど遅れます</strong>。特に下の「入れ替わりが多いチーム」は、しばらく予想が実力とずれる可能性があります。
+  </div>
+
+  <div class="table-wrap">
+  <table class="games trade-table">
+    <thead><tr><th>区分</th><th>選手</th><th>移籍</th><th>今季成績</th></tr></thead>
+    <tbody>
+    {% for t in trades.notable %}
+      <tr>
+        <td><span class="trade-role {{ 'p' if t.role=='P' else 'b' }}">{{ '投手' if t.role=='P' else '野手' }}</span></td>
+        <td class="trade-name">{{ t.player_name }}</td>
+        <td class="trade-move">
+          {% if t.from_abbr %}<a href="{{ root }}teams/{{ t.from_abbr|lower }}.html">{{ t.from_ja }}</a>{% else %}{{ t.from_ja or '-' }}{% endif %}
+          <span class="trade-arrow">→</span>
+          {% if t.to_abbr %}<a href="{{ root }}teams/{{ t.to_abbr|lower }}.html"><strong>{{ t.to_ja }}</strong></a>{% else %}{{ t.to_ja or '-' }}{% endif %}
+        </td>
+        <td class="trade-stat">{{ t.summary }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  {% if trades.busiest %}
+  <h3 class="pick-rec-head">入れ替わりが多いチーム <small class="header-meta">地力評価が実態とずれやすい</small></h3>
+  <div class="table-wrap">
+  <table class="games trade-table">
+    <thead><tr><th>チーム</th><th>獲得</th><th>放出</th><th>計</th></tr></thead>
+    <tbody>
+    {% for m in trades.busiest %}
+      <tr>
+        <td class="team-cell">{{ m.name_ja }}</td>
+        <td class="score">{{ m['in'] }}人{% if m.in_p %}<span class="fi-n">投{{ m.in_p }}</span>{% endif %}</td>
+        <td class="score">{{ m.out }}人{% if m.out_p %}<span class="fi-n">投{{ m.out_p }}</span>{% endif %}</td>
+        <td class="score"><strong>{{ m['in'] + m.out }}</strong></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+  <p class="meta-note">※MLB Stats API の取引記録から、今季<strong>投球30回以上または150打席以上</strong>の選手だけを抽出しています。直近30日を対象にしているため、期限から1か月ほどでこの欄は自然に消えます。<br>
+  「直近の成績を重く見る」補正でこのズレを埋める案は検討しましたが、以前の検証で精度が落ちた（過学習）ため、<strong>期限後の試合が十分たまってから実測で判断</strong>します。それまでは上記を判断材料として添えるに留めています。</p>
+</section>
+{% endif %}
+
 {% if picks %}
 <section>
   <h2>本命ピック <small class="header-meta">検証済みモデルが選んだ「勝ちそうな試合」</small></h2>

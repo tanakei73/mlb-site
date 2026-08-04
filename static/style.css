@@ -336,6 +336,35 @@ tr.pick-confident { background: rgba(58, 122, 90, .07); }
   color: var(--color-text-sub); padding: 0 5px; border-radius: 3px;
 }
 
+/* トレード期限の動き */
+.trade-alert {
+  font-size: 12px;
+  line-height: 1.8;
+  background: var(--color-bg-alt);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-accent, var(--color-win));
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin: 4px 0 14px;
+}
+.trade-table .trade-name { font-weight: 600; font-size: 13px; }
+.trade-table .trade-move { font-size: 12px; white-space: nowrap; }
+.trade-table .trade-arrow { color: var(--color-text-sub); margin: 0 4px; }
+.trade-table .trade-stat {
+  font-family: var(--font-num);
+  font-size: 11px;
+  color: var(--color-text-sub);
+  white-space: nowrap;
+}
+.trade-role {
+  display: inline-block;
+  font-size: 10px; font-weight: 700;
+  padding: 1px 6px; border-radius: 3px;
+  white-space: nowrap;
+}
+.trade-role.p { background: var(--color-win); color: #fff; }
+.trade-role.b { border: 1px solid var(--color-border); color: var(--color-text-sub); }
+
 /* 本命ピックの実績 */
 .pick-rec-head {
   font-size: 14px;
