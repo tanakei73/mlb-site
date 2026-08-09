@@ -18,8 +18,19 @@ from typing import Optional
 
 from db import connect
 
-LEAGUE_MEAN_1ST_RUNS = 0.54   # 1回の平均得点（実測 ≈ 0.543）
-MAX_RUNS = 8                    # Poisson 畳み込みの打ち切り
+LEAGUE_MEAN_1ST_RUNS = 0.53   # 1回の平均得点（実測 ≈ 0.530）
+MAX_RUNS = 12                   # 分布の畳み込みの打ち切り
+
+# 1回の得点は「0点か、まとめて大量点」に偏る(過分散)ため、ポアソンでは表せない。
+# 実測(3690サイド)は 平均0.530 / 分散1.074 で、分散比 2.03。
+# 負の二項分布 (var = mu + mu^2/r) を当てはめると r ≈ 0.517 でよく一致する。
+#
+#   得点     実測    負の二項   ポアソン
+#   0点     70.7%    69.4%    58.9%
+#   1点     15.8%    18.2%    31.2%
+#   4点以上  2.5%     2.2%     0.2%
+#   1点以上 29.3%    30.6%    41.1%   ← ポアソンは+11.8ptの過大評価
+NB_DISPERSION = 0.517
 
 
 def _team_first(team_id: Optional[int]) -> Optional[dict]:
@@ -80,13 +91,23 @@ def pitcher_first_inning(player_id: Optional[int]) -> Optional[dict]:
         "starts": starts,
         "raw_mean": runs / starts,
         "mean_allowed": mean_allowed,
-        # ポアソン近似で「1回に1点以上取られる確率」
-        "allow_prob": 1.0 - math.exp(-mean_allowed),
+        # 「1回に1点以上取られる確率」(負の二項分布)
+        "allow_prob": _score_prob(mean_allowed),
     }
 
 
-def _poisson_pmf(lam: float, k: int) -> float:
-    return math.exp(-lam) * lam ** k / math.factorial(k)
+def _nb_pmf(mu: float, k: int, r: float = NB_DISPERSION) -> float:
+    """負の二項分布の確率質量。平均 mu、分散 mu + mu^2/r。
+
+    1回の得点はポアソンより「0点」と「大量点」に偏るため、こちらを使う。
+    """
+    return (math.exp(math.lgamma(k + r) - math.lgamma(r) - math.lgamma(k + 1))
+            * (r / (r + mu)) ** r * (mu / (r + mu)) ** k)
+
+
+def _score_prob(mu: float) -> float:
+    """1点以上取る確率(= 1 - P(0点))。"""
+    return 1.0 - _nb_pmf(mu, 0)
 
 
 def _blend_lambda(team_mean: Optional[float], pitcher_mean: Optional[float]) -> float:
@@ -100,7 +121,11 @@ def _blend_lambda(team_mean: Optional[float], pitcher_mean: Optional[float]) -> 
         lam = pitcher_mean
     else:
         lam = LEAGUE_MEAN_1ST_RUNS
-    return max(0.05, min(3.0, lam))   # 極端値をクランプ
+    # 下限0.25(=得点率18%)。打線と投手の1回成績は小サンプルで振れやすく、
+    # 掛け算だと極端に低い値が出てしまう。実測でも「得点率20%未満」と
+    # 予想した場面の実際の得点率は19.5%あり、一桁%はあり得ない。
+    # 下限0.05→0.25でBrierが 0.2027→0.2006 に改善することを確認済み。
+    return max(0.25, min(3.0, lam))
 
 
 def predict_first_inning(game: dict) -> Optional[dict]:
@@ -119,8 +144,8 @@ def predict_first_inning(game: dict) -> Optional[dict]:
     lam_home = _blend_lambda(home["mean_scored"], ap["mean_allowed"] if ap else None)
 
     # 各サイドの得点分布 (0..MAX_RUNS)
-    pa = [_poisson_pmf(lam_away, k) for k in range(MAX_RUNS + 1)]
-    ph = [_poisson_pmf(lam_home, k) for k in range(MAX_RUNS + 1)]
+    pa = [_nb_pmf(lam_away, k) for k in range(MAX_RUNS + 1)]
+    ph = [_nb_pmf(lam_home, k) for k in range(MAX_RUNS + 1)]
 
     p_away_ahead = p_home_ahead = p_tie = 0.0
     for i in range(MAX_RUNS + 1):
@@ -137,8 +162,8 @@ def predict_first_inning(game: dict) -> Optional[dict]:
         p_away_ahead /= total; p_home_ahead /= total; p_tie /= total
 
     return {
-        "away_score_prob": round((1 - math.exp(-lam_away)) * 100),  # 表に得点する確率
-        "home_score_prob": round((1 - math.exp(-lam_home)) * 100),
+        "away_score_prob": round(_score_prob(lam_away) * 100),  # 表に得点する確率
+        "home_score_prob": round(_score_prob(lam_home) * 100),
         "away_lambda": round(lam_away, 2),
         "home_lambda": round(lam_home, 2),
         "away_ahead": round(p_away_ahead * 100),   # 1回終了時リード
