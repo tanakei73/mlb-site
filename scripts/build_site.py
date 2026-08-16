@@ -10,6 +10,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from db import connect
+from inning_stats import inning_scoring
 from first_inning import (
     predict_first_inning,
     save_first_inning_snapshot,
@@ -636,6 +637,16 @@ def _backfill_first_inning_snapshots() -> None:
             save_first_inning_snapshot(g["game_pk"], fi, "", backfill=True)
 
 
+def build_innings_page(env, base_ctx) -> None:
+    """イニング別の得点傾向ページ。"""
+    inn = inning_scoring()
+    if not inn:
+        return
+    render(env, "innings.html",
+           {**base_ctx, "active": "innings", "inn": inn},
+           SITE / "innings.html")
+
+
 def build_standings(env, base_ctx, leagues) -> None:
     render(env, "standings.html", {**base_ctx, "active": "standings", "leagues": leagues}, SITE / "standings.html")
 
@@ -1188,6 +1199,8 @@ def main() -> None:
     build_japanese_page(env, base_ctx)
     print("[build] pitcher ranking")
     build_pitcher_ranking_page(env, base_ctx)
+    print("[build] innings")
+    build_innings_page(env, base_ctx)
     print("[build] pitcher pages")
     n = build_pitcher_pages(env, base_ctx, teams)
     print(f"  → {n} pitcher pages")

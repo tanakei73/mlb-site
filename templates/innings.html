@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <h2>イニング別 得点傾向 <small class="header-meta">{{ inn.games }}試合・約{{ (inn.games * 17 / 1000) | round | int }}千イニングから集計</small></h2>
+
+  <div class="inn-summary">
+    <div class="inn-hero">
+      <div class="inn-hero-label">最も得点が入る半イニング</div>
+      <div class="inn-hero-main">{{ inn.top_halves[0].label }}</div>
+      <div class="inn-hero-sub">平均 <strong>{{ inn.top_halves[0].mean }}</strong>点 ／ 得点率 <strong>{{ inn.top_halves[0].score_pct }}%</strong></div>
+      <div class="inn-hero-note">全体平均 {{ inn.league_mean }}点</div>
+    </div>
+    <div class="inn-hero sub">
+      <div class="inn-hero-label">最も少ないイニング</div>
+      <div class="inn-hero-main">{{ inn.worst.inning }}回</div>
+      <div class="inn-hero-sub">平均 <strong>{{ inn.worst.both.mean }}</strong>点 ／ 得点率 <strong>{{ inn.worst.both.score_pct }}%</strong></div>
+      <div class="inn-hero-note">最多の{{ inn.best.inning }}回との差 {{ inn.spread }}点{% if inn.spread_sig %}（統計的に有意）{% endif %}</div>
+    </div>
+  </div>
+
+  <h3 class="pick-rec-head">イニング別の平均得点 <small class="header-meta">表（ビジター攻撃）と裏（ホーム攻撃）</small></h3>
+  <div class="table-wrap">
+  <table class="games inn-table">
+    <thead>
+      <tr>
+        <th>回</th>
+        <th>合計</th>
+        <th>グラフ</th>
+        <th>表 平均</th><th>表 得点率</th>
+        <th>裏 平均</th><th>裏 得点率</th>
+        <th>裏−表</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for x in inn.innings %}
+      <tr class="{% if x.inning == inn.best.inning %}inn-best{% elif x.inning == inn.worst.inning %}inn-worst{% endif %}">
+        <td class="inn-num"><strong>{{ x.inning }}回</strong>{% if x.partial %}<span class="fi-bf" title="9回裏はホームがリードしていると行われないため機会が少ない">※</span>{% endif %}</td>
+        <td class="score"><strong>{{ x.both.mean }}</strong></td>
+        <td class="inn-bar-cell">
+          <span class="inn-bar" style="width:{{ (x.both.mean / 0.62 * 100) | round | int }}%"></span>
+        </td>
+        <td class="score">{{ x.away.mean }}</td>
+        <td class="score muted">{{ x.away.score_pct }}%</td>
+        <td class="score">{{ x.home.mean }}</td>
+        <td class="score muted">{{ x.home.score_pct }}%</td>
+        <td class="score">
+          <span class="{% if x.home_edge > 0 %}rec-up{% else %}rec-down{% endif %}">{{ '%+.3f'|format(x.home_edge) }}</span>
+          {% if x.home_edge_sig %}<span class="inn-sig">有意</span>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <h3 class="pick-rec-head">半イニング単位のランキング</h3>
+  <div class="table-wrap">
+  <table class="games inn-table">
+    <thead><tr><th>順位</th><th>半イニング</th><th>平均得点</th><th>得点率</th><th>3点以上</th><th>機会</th></tr></thead>
+    <tbody>
+    {% for h in inn.halves %}
+      <tr class="{% if loop.index <= 3 %}inn-best{% endif %}">
+        <td class="score">{{ loop.index }}</td>
+        <td><strong>{{ h.label }}</strong>{% if h.partial %}<span class="fi-bf" title="機会が少なく偏りあり">※</span>{% endif %}</td>
+        <td class="score"><strong>{{ h.mean }}</strong></td>
+        <td class="score">{{ h.score_pct }}%</td>
+        <td class="score muted">{{ h.big_pct }}%</td>
+        <td class="score muted">{{ h.n }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <div class="inn-read">
+    <h3>データの読み方</h3>
+    <p><strong>1回裏が突出しています。</strong>平均{{ inn.innings[0].home.mean }}点・得点率{{ inn.innings[0].home.score_pct }}%で、半イニングとしては最多です。全イニション通算のホーム有利は{{ '%+.3f'|format(inn.home_baseline) }}点ですが、<strong>1回だけは{{ '%+.3f'|format(inn.innings[0].home_edge) }}点と約3倍</strong>。表裏差が統計的に有意なのは1回だけで、ビジター先発が立ち上がりに苦しみやすい傾向を示しています。</p>
+    <p><strong>2回が最も少ないのは打順の巡りです。</strong>1回で上位打線を使い切り、2回は下位打線から始まるため。野球の構造がそのまま数字に出ています。</p>
+    <p><strong>8回が高いのは継投のタイミング</strong>と考えられます。先発が降板してリリーフに代わる場面で、得点が入りやすくなっています。</p>
+    <p class="inn-caution"><strong>注意:</strong> 上位の8回・5回・1回は<strong>互いに差があるとは言えません</strong>（信頼区間が重なるため）。「8回が一番得点しやすい」と断言はできません。統計的に言えるのは「最多の{{ inn.best.inning }}回と最少の{{ inn.worst.inning }}回には差がある」（差{{ inn.spread }}点、z={{ inn.spread_z }}）までです。<br>
+    また<strong>9回裏（※印）は機会が少なく偏っています</strong>。ホームがリードしていると行われないため、「接戦の9回裏」だけを集めたサンプルになっており、他の回と同列に比較できません。延長は特別ルール（無死二塁）で条件が違うため対象外にしています。</p>
+  </div>
+</section>
+{% endblock %}

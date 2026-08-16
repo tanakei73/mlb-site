@@ -336,6 +336,51 @@ tr.pick-confident { background: rgba(58, 122, 90, .07); }
   color: var(--color-text-sub); padding: 0 5px; border-radius: 3px;
 }
 
+/* イニング別 得点傾向 */
+.inn-summary { display: flex; gap: 12px; flex-wrap: wrap; margin: 4px 0 18px; }
+.inn-hero {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 14px 20px;
+  background: var(--color-bg-alt);
+  min-width: 220px;
+}
+.inn-hero.sub { opacity: .85; }
+.inn-hero-label { font-size: 11px; color: var(--color-text-sub); }
+.inn-hero-main {
+  font-size: 30px; font-weight: 800; line-height: 1.2;
+  color: var(--color-win); font-family: var(--font-num);
+  margin: 2px 0 4px;
+}
+.inn-hero-sub { font-size: 12px; }
+.inn-hero-note { font-size: 11px; color: var(--color-text-sub); margin-top: 6px; }
+.inn-table .inn-num { white-space: nowrap; }
+.inn-bar-cell { min-width: 110px; width: 22%; }
+.inn-bar {
+  display: block; height: 10px;
+  background: var(--color-win);
+  border-radius: 2px;
+  min-width: 2px;
+}
+tr.inn-best { background: rgba(58, 122, 90, .10); }
+tr.inn-worst { background: rgba(160, 60, 60, .06); }
+.inn-sig {
+  font-size: 9px; font-weight: 700;
+  background: var(--color-win); color: #fff;
+  padding: 0 4px; border-radius: 2px; margin-left: 3px;
+}
+.inn-read { margin-top: 24px; font-size: 13px; line-height: 1.9; }
+.inn-read h3 { font-size: 14px; margin-bottom: 8px; }
+.inn-read p { margin: 0 0 10px; }
+.inn-caution {
+  font-size: 12px;
+  color: var(--color-text-sub);
+  background: var(--color-bg-alt);
+  border: 1px dashed var(--color-border);
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+
 /* トレード期限の動き */
 .trade-alert {
   font-size: 12px;
