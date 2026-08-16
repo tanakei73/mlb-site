@@ -53,6 +53,34 @@
   </table>
   </div>
 
+  {% if inn.fair %}
+  {% set f = inn.fair %}
+  <h3 class="pick-rec-head">9回を除いた 1〜8回の比較 <small class="header-meta">機会数が揃った公平な比較</small></h3>
+  <p class="inn-fair-note">9回裏はホームがリードしていると行われず機会が{{ inn.innings[8].home.n }}回しかありません（他は{{ inn.innings[0].home.n }}回前後）。<strong>1〜8回はすべて機会数が揃っている</strong>ので、こちらが偏りのない比較になります。8イニション平均は{{ f.mean }}点です。</p>
+  <div class="table-wrap">
+  <table class="games inn-table">
+    <thead>
+      <tr><th>順位</th><th>回</th><th>平均得点</th><th>グラフ</th><th>95%信頼区間</th><th>得点率</th><th>表</th><th>裏</th></tr>
+    </thead>
+    <tbody>
+    {% for x in f.ranked %}
+      <tr class="{% if loop.first %}inn-best{% elif loop.last %}inn-worst{% endif %}">
+        <td class="score">{{ loop.index }}</td>
+        <td class="inn-num"><strong>{{ x.inning }}回</strong></td>
+        <td class="score"><strong>{{ x.both.mean }}</strong></td>
+        <td class="inn-bar-cell"><span class="inn-bar" style="width:{{ (x.both.mean / 0.56 * 100) | round | int }}%"></span></td>
+        <td class="score muted">{{ (x.both.mean - x.both.ci) | round(3) }} 〜 {{ (x.both.mean + x.both.ci) | round(3) }}</td>
+        <td class="score">{{ x.both.score_pct }}%</td>
+        <td class="score muted">{{ x.away.mean }}</td>
+        <td class="score muted">{{ x.home.mean }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="meta-note">※<strong>{{ f.best.inning }}回が最多、{{ f.worst.inning }}回が最少</strong>で、その差{{ f.spread }}点は統計的に有意（z={{ f.spread_z }}）。ただし信頼区間を見ると分かるとおり、<strong>上位の{{ f.ranked[0].inning }}回・{{ f.ranked[1].inning }}回・{{ f.ranked[2].inning }}回は互いに区別できません</strong>。「終盤{{ f.ranked[0].inning }}回と序盤{{ f.ranked[2].inning }}回、そして中盤{{ f.ranked[1].inning }}回が同程度に高く、{{ f.worst.inning }}回が明確に低い」という読み方が正確です。</p>
+  {% endif %}
+
   <h3 class="pick-rec-head">半イニング単位のランキング</h3>
   <div class="table-wrap">
   <table class="games inn-table">

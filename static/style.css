@@ -369,6 +369,15 @@ tr.inn-worst { background: rgba(160, 60, 60, .06); }
   background: var(--color-win); color: #fff;
   padding: 0 4px; border-radius: 2px; margin-left: 3px;
 }
+.inn-fair-note {
+  font-size: 12px;
+  line-height: 1.8;
+  background: var(--color-bg-alt);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 4px 0 12px;
+}
 .inn-read { margin-top: 24px; font-size: 13px; line-height: 1.9; }
 .inn-read h3 { font-size: 14px; margin-bottom: 8px; }
 .inn-read p { margin: 0 0 10px; }

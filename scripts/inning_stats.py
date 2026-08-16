@@ -92,6 +92,35 @@ def inning_scoring() -> Optional[dict]:
             "partial": h["n"] < a["n"] * 0.9,
         })
 
+    def _summarize(subset: list[dict]) -> dict:
+        """与えたイニング群のランキングと、最多-最少の有意性をまとめる。"""
+        ranked_ = sorted(subset, key=lambda x: -x["both"]["mean"])
+        best_, worst_ = ranked_[0], ranked_[-1]
+        d_ = best_["both"]["mean"] - worst_["both"]["mean"]
+        sed_ = math.sqrt(best_["both"]["se"] ** 2 + worst_["both"]["se"] ** 2)
+        z_ = d_ / sed_ if sed_ else 0
+        halves_ = []
+        for x in subset:
+            for side, label in (("away", "表"), ("home", "裏")):
+                halves_.append({
+                    "inning": x["inning"], "side": side,
+                    "label": f"{x['inning']}回{label}",
+                    "partial": x["partial"] and side == "home",
+                    **x[side],
+                })
+        halves_.sort(key=lambda h: -h["mean"])
+        vals = [x["both"]["mean"] for x in subset]
+        return {
+            "innings": subset, "ranked": ranked_, "halves": halves_,
+            "best": best_, "worst": worst_,
+            "spread": round(d_, 3), "spread_z": round(z_, 2),
+            "spread_sig": abs(z_) > 1.96,
+            "mean": round(sum(vals) / len(vals), 3),
+        }
+
+    # 9回は「裏がホームリード時に行われない」ため偏る。除いた1〜8回が公平な比較。
+    fair = _summarize([x for x in innings if x["inning"] <= 8])
+
     ranked = sorted(innings, key=lambda x: -x["both"]["mean"])
     best, worst = ranked[0], ranked[-1]
     d = best["both"]["mean"] - worst["both"]["mean"]
@@ -118,6 +147,7 @@ def inning_scoring() -> Optional[dict]:
         "innings": innings,
         "ranked": ranked,
         "halves": halves,
+        "fair": fair,   # 9回を除いた1〜8回(機会数が揃った公平な比較)
         "top_halves": halves[:5],
         "league_mean": round(league_mean, 3),
         "home_baseline": round(sum(all_home) / len(all_home) - sum(all_away) / len(all_away), 3),
