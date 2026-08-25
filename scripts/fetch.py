@@ -579,27 +579,47 @@ def fetch_starting_pitchers() -> None:
       3. 各選手で fetch_pitcher_detail を呼ぶ
     """
     with connect() as conn:
+        # ロースターの投手に加え、予告先発として名前が出ている投手も必ず含める。
+        # ロースター取得のタイミングによっては載らない投手がいて、
+        # 実際 Glasnow が丸ごと漏れていた。
         pitcher_rows = conn.execute(
             """SELECT DISTINCT p.player_id, p.full_name
                FROM players p
                JOIN rosters r ON p.player_id = r.player_id
-               WHERE r.position_code='1' AND r.season=?""",
+               WHERE r.position_code='1' AND r.season=?
+               UNION
+               SELECT DISTINCT g.home_pitcher_id, g.home_pitcher FROM games g
+               WHERE g.home_pitcher_id IS NOT NULL
+               UNION
+               SELECT DISTINCT g.away_pitcher_id, g.away_pitcher FROM games g
+               WHERE g.away_pitcher_id IS NOT NULL""",
             (SEASON,),
         ).fetchall()
-    print(f"[pitchers] {len(pitcher_rows)} pitchers on rosters")
+    print(f"[pitchers] {len(pitcher_rows)} pitchers (rosters + probable starters)")
 
-    # 1. 各投手のシーズン成績を取得 (既にあるならスキップ)
+    # 1. 各投手のシーズン成績を取得
+    # 「取得済みならスキップ」にすると、シーズン途中でローテ入りした投手が
+    # 初回取得時の gamesStarted=0 のまま固定され、先発として扱われなくなる
+    # (実際 5月時点の値が8月まで残り、Glasnow/Manaea/Alvarez らが漏れていた)。
+    # そのため、まだ先発実績が無い投手は毎回取り直す。
     with connect() as conn:
-        existing = {r["player_id"] for r in conn.execute(
-            "SELECT player_id FROM player_season_stats WHERE stat_group='pitching' AND season=?",
-            (SEASON,)).fetchall()}
+        confirmed_starters = set()
+        for r in conn.execute(
+            """SELECT player_id, stats_json FROM player_season_stats
+               WHERE stat_group='pitching' AND season=?""", (SEASON,)):
+            try:
+                s = json.loads(r["stats_json"])
+            except json.JSONDecodeError:
+                continue
+            if (s.get("gamesStarted") or 0) >= 1:
+                confirmed_starters.add(r["player_id"])
 
     now = dt.datetime.now(JST).isoformat(timespec="seconds")
     fetched_season = 0
     for r in pitcher_rows:
         pid = r["player_id"]
-        if pid in existing:
-            continue
+        if pid in confirmed_starters:
+            continue   # 既に先発として確定済み。詳細は後段で毎回更新される
         try:
             data = _get(f"people/{pid}/stats",
                         stats="season", season=SEASON, group="pitching")
@@ -612,6 +632,12 @@ def fetch_starting_pitchers() -> None:
         if not stat:
             continue
         with connect() as conn:
+            # 予告先発で初めて出てきた投手は players に未登録のことがある。
+            # player_season_stats は players を参照するので先に入れておく。
+            conn.execute(
+                "INSERT OR IGNORE INTO players (player_id, full_name) VALUES (?,?)",
+                (pid, r["full_name"]),
+            )
             conn.execute(
                 """INSERT OR REPLACE INTO player_season_stats
                 (player_id, season, stat_group, stats_json, updated_at)
@@ -623,12 +649,13 @@ def fetch_starting_pitchers() -> None:
     print(f"[pitchers] fetched season stats for {fetched_season} new pitchers")
 
     # 2. gamesStarted>=1の投手だけ抽出
+    # players に未登録の投手(予告先発で初めて名前が出た等)も落とさないよう LEFT JOIN
     with connect() as conn:
         starters = []
         for r in conn.execute(
-            """SELECT p.player_id, p.full_name, ps.stats_json
-               FROM players p
-               JOIN player_season_stats ps ON p.player_id = ps.player_id
+            """SELECT ps.player_id, COALESCE(p.full_name, '') AS full_name, ps.stats_json
+               FROM player_season_stats ps
+               LEFT JOIN players p ON p.player_id = ps.player_id
                WHERE ps.stat_group='pitching' AND ps.season=?""",
             (SEASON,),
         ).fetchall():
