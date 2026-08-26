@@ -603,6 +603,10 @@ def fetch_starting_pitchers() -> None:
     # (実際 5月時点の値が8月まで残り、Glasnow/Manaea/Alvarez らが漏れていた)。
     # そのため、まだ先発実績が無い投手は毎回取り直す。
     with connect() as conn:
+        # 予告先発に名前がある投手は成績を毎回更新する(移籍や日々の登板を反映)
+        probable_ids = {r[0] for r in conn.execute(
+            """SELECT home_pitcher_id FROM games WHERE home_pitcher_id IS NOT NULL
+               UNION SELECT away_pitcher_id FROM games WHERE away_pitcher_id IS NOT NULL""")}
         confirmed_starters = set()
         for r in conn.execute(
             """SELECT player_id, stats_json FROM player_season_stats
@@ -618,8 +622,10 @@ def fetch_starting_pitchers() -> None:
     fetched_season = 0
     for r in pitcher_rows:
         pid = r["player_id"]
-        if pid in confirmed_starters:
-            continue   # 既に先発として確定済み。詳細は後段で毎回更新される
+        # 先発確定済みでも成績は日々更新されるので、予告先発に名前がある投手は
+        # 毎回取り直す。それ以外の確定済みは負荷を抑えるためスキップ。
+        if pid in confirmed_starters and pid not in probable_ids:
+            continue
         try:
             data = _get(f"people/{pid}/stats",
                         stats="season", season=SEASON, group="pitching")
@@ -628,7 +634,10 @@ def fetch_starting_pitchers() -> None:
         splits = (data.get("stats") or [{}])[0].get("splits", [])
         if not splits:
             continue
-        stat = splits[0].get("stat")
+        # 移籍した選手は splits が複数返る([0]=通算, 以降=チーム別)。
+        # チーム情報を持たない split が通算値なので、それを優先する。
+        total = next((x for x in splits if not x.get("team")), splits[0])
+        stat = total.get("stat")
         if not stat:
             continue
         with connect() as conn:
