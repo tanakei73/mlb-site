@@ -68,11 +68,6 @@ def pitcher_first_inning(player_id: Optional[int]) -> Optional[dict]:
                WHERE player_id=? AND split_type='byInning' AND split_key='1'
                AND season=(SELECT MAX(season) FROM player_split_stats)""",
             (player_id,)).fetchone()
-        # 先発数: 4回以上投げた登板を先発とみなす
-        starts_row = conn.execute(
-            """SELECT COUNT(*) n FROM player_game_log
-               WHERE player_id=? AND stat_group='pitching'""",
-            (player_id,)).fetchone()
     if not row:
         return None
     try:
@@ -80,7 +75,11 @@ def pitcher_first_inning(player_id: Optional[int]) -> Optional[dict]:
     except (TypeError, json.JSONDecodeError):
         return None
     runs = s.get("runs")
-    starts = starts_row["n"] if starts_row else 0
+    # 分母は split 自身の gamesPlayed(=1回に登板した試合数)。
+    # 以前は player_game_log の登板数を使っていたが、分子と出所が違うため
+    # ずれていた(例: F.ペラルタ 分子28試合ぶん / 分母26登板)。
+    # 中継ぎだと「1回に投げたのは3試合」でも分母が全60登板になり大きく狂う。
+    starts = s.get("gamesPlayed") or 0
     if not starts or runs is None:
         return None
     # リーグ平均への回帰: 仮想的に K 登板ぶんリーグ平均を足す

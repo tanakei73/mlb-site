@@ -475,6 +475,39 @@ def fetch_team_season_stats() -> None:
     print(f"[team_stats] saved {saved} stat blocks for {len(team_ids)} teams")
 
 
+def _merge_splits(splits: list[dict]) -> dict:
+    """同じ split_key に属する複数の split レコードを1つの stat に合算する。
+
+    移籍した選手は API が「所属チームごとのレコード + team を持たない通算レコード」を
+    返す。ところが byInning (statSplits) の通算レコードは runs が 0 のまま返ってくる
+    (rbi や homeRuns は正しい)。以前はこれを最後に上書き保存していたため、
+    移籍した先発が全員「初回失点0」に見えていた。
+
+      例) F.ペラルタ 1回:  Mets 8失点 + Rays 5失点 = 13失点
+          しかし通算レコードは runs=0 → 初回失点率 7.6% と表示(実測32%)
+
+    そこでチーム別レコードがあればそれを合算し、通算レコードは
+    合算で埋まらない項目(打率などの文字列)の穴埋めにだけ使う。
+    """
+    if len(splits) == 1:
+        return splits[0].get("stat") or {}
+    per_team = [s for s in splits if s.get("team")]
+    total = next((s for s in splits if not s.get("team")), None)
+    if not per_team:
+        return (total or splits[-1]).get("stat") or {}
+
+    merged: dict = dict((total or {}).get("stat") or {})
+    sums: dict = {}
+    for s in per_team:
+        for k, v in (s.get("stat") or {}).items():
+            if isinstance(v, bool) or not isinstance(v, (int, float)):
+                continue
+            sums[k] = sums.get(k, 0) + v
+    # 合計して意味のある数値項目だけ上書き(率や文字列は通算レコードの値を残す)
+    merged.update(sums)
+    return merged
+
+
 def fetch_pitcher_detail(player_id: int) -> int:
     """1投手の (gameLog, byMonth, homeAndAway, statSplits vl/vr) を取得して保存。
     保存した行数を返す。"""
@@ -518,6 +551,7 @@ def fetch_pitcher_detail(player_id: int) -> int:
         saved += len(rows)
 
     # --- splits (4種類) ---
+    # 移籍選手は同じ split_key に複数レコードが返る。_merge_splits で合算する。
     split_specs = [
         ("byMonth", "byMonth", None),
         ("homeAndAway", "homeAndAway", None),
@@ -535,6 +569,7 @@ def fetch_pitcher_detail(player_id: int) -> int:
         except requests.HTTPError as e:
             print(f"  WARN {split_label} {player_id}: {e}", file=sys.stderr)
             continue
+        by_key: dict[str, list[dict]] = {}
         for sp in (data.get("stats") or [{}])[0].get("splits", []):
             # split_key の決定
             if split_label == "byMonth":
@@ -551,9 +586,11 @@ def fetch_pitcher_detail(player_id: int) -> int:
                 key = str(int(code[1:])) if code.startswith("i") and code[1:].isdigit() else code
             else:
                 key = "?"
+            by_key.setdefault(key, []).append(sp)
+        for key, sps in by_key.items():
             split_rows.append((
                 player_id, SEASON, "pitching", split_label, key,
-                json.dumps(sp.get("stat") or {}, ensure_ascii=False),
+                json.dumps(_merge_splits(sps), ensure_ascii=False),
             ))
     if split_rows:
         with connect() as conn:
