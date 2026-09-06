@@ -845,6 +845,24 @@ def fetch_trades(days_back: int = 30) -> None:
     print(f"[trades] {len(trades)} trades scanned, {len(rows)} key players saved")
 
 
+def fetch_watchlist_pitchers() -> None:
+    """注目リストの投手を必ず最新化する。
+
+    fetch_starting_pitchers() は「数日以内に予告先発がある投手」しか更新しない。
+    注目リストの投手は登板間隔が空いたり故障者リストに入ったりすると
+    そこから漏れ、注目リストページだけ何週間も古い成績を出してしまう。
+    人数が少ないので毎回取り直す。
+    """
+    from watchlist import WATCH_PITCHERS
+    saved = 0
+    for pid, _name in WATCH_PITCHERS:
+        try:
+            saved += fetch_pitcher_detail(pid)
+        except (requests.HTTPError, requests.ConnectionError, ValueError) as e:
+            print(f"  WARN watchlist {pid}: {e}", file=sys.stderr)
+    print(f"[watchlist] refreshed {len(WATCH_PITCHERS)} pitchers, {saved} rows")
+
+
 def fetch_season_linescores(start: str, end: str) -> None:
     """シーズン全体のイニング別スコアを取得する(軽量版)。
 
@@ -928,6 +946,7 @@ def main() -> None:
     fetch_leaders()
     fetch_japanese_player_stats()
     fetch_starting_pitchers()
+    fetch_watchlist_pitchers()
     fetch_trades(days_back=30)
     # 第一イニング予想の的中率トラッカー用に、シーズン全体のイニング別スコアを確保
     fetch_season_linescores(f"{SEASON}-03-15", today.isoformat())

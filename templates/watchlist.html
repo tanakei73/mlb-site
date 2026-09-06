@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}注目リスト ／ MLB データ置き場{% endblock %}
+{% block content %}
+<section>
+  <h2>注目リスト <small class="header-meta">投手{{ w.pitchers|length }}人・チーム{{ w.teams|length }}球団</small></h2>
+  <p class="wl-intro">
+    気にしている投手とチームだけを並べたページ。マスは <span class="wl-o">◯</span> がチームの勝ち、<span class="wl-x">⚫︎</span> が負け。
+    上段が<strong>ホーム</strong>、下段が<strong>ビジター</strong>で、左が古い登板です。
+  </p>
+
+  {% for p in w.pitchers %}
+  <div class="wl-card">
+    <div class="wl-head">
+      <div class="wl-name">
+        <a href="{{ root }}players/pitchers/{{ p.player_id }}.html">{{ p.name }}</a>
+        <span class="wl-team">{{ p.team }}</span>
+      </div>
+      <div class="wl-stats">
+        <span class="wl-stat"><b>{{ p.n }}</b><i>先発</i></span>
+        <span class="wl-stat"><b>{{ p.win_pct }}%</b><i>勝率</i></span>
+        <span class="wl-stat {% if p.home_win_pct and p.away_win_pct and p.home_win_pct - p.away_win_pct >= 15 %}wl-hi{% endif %}">
+          <b>{{ p.home_win_pct if p.home_win_pct is not none else '—' }}%</b><i>ホーム</i></span>
+        <span class="wl-stat {% if p.home_win_pct and p.away_win_pct and p.away_win_pct - p.home_win_pct >= 15 %}wl-hi{% endif %}">
+          <b>{{ p.away_win_pct if p.away_win_pct is not none else '—' }}%</b><i>ビジター</i></span>
+        <span class="wl-stat"><b>{{ p.first_clean_pct if p.first_clean_pct is not none else '—' }}%</b><i>初回無失点</i></span>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="wl-grid">
+        <thead>
+          <tr>
+            <th class="wl-rowhead"></th>
+            {% for s in p.starts %}<th>{{ s.label }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row_home in [true, false] %}
+          <tr>
+            <th class="wl-rowhead">{{ 'ホーム' if row_home else 'ビジター' }}</th>
+            {% for s in p.starts %}
+              {% if s.is_home == row_home %}
+              <td class="wl-cell {{ 'wl-win' if s.team_won else 'wl-loss' }}"
+                  title="{{ s.label }} vs{{ s.opp }}（{{ 'チーム勝ち' if s.team_won else 'チーム負け' }}／本人{{ '勝' if s.decision == 'W' else '負' if s.decision == 'L' else '勝敗つかず' }}）&#10;{{ s.ip }}回 {{ s.runs }}失点（自責{{ s.er }}）&#10;初回 {{ s.first_runs if s.first_runs is not none else '?' }}失点／5回まで両軍計 {{ s.runs_thru5 if s.runs_thru5 is not none else '?' }}点">
+                <span class="wl-mark">{{ '◯' if s.team_won else '⚫︎' }}</span>
+                <span class="wl-sub">{{ s.opp_abbr }}</span>
+                <span class="wl-sub wl-fi{{ '0' if s.first_runs == 0 else '' }}">初{{ s.first_runs if s.first_runs is not none else '?' }}</span>
+              </td>
+              {% else %}
+              <td class="wl-cell wl-empty"></td>
+              {% endif %}
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="wl-legend">マスの下段は 相手／初回失点。マウスを乗せると投球回・自責点・5回まで両軍合計も出ます。</p>
+  </div>
+  {% endfor %}
+</section>
+
+<section>
+  <h3 class="pick-rec-head">注目チームの直近{{ w.teams[0].n }}試合 <small class="header-meta">左が古い</small></h3>
+  <div class="table-wrap">
+    <table class="wl-grid wl-teamgrid">
+      <thead>
+        <tr>
+          <th class="wl-rowhead">チーム</th>
+          <th class="wl-rowhead">直近</th>
+          {% for g in w.teams[0].games %}<th>{{ '古' if loop.first else '新' if loop.last else '' }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in w.teams %}
+        <tr class="wl-team-{{ t.note }}">
+          <th class="wl-rowhead">
+            <a href="{{ root }}teams/{{ t.abbr|lower }}.html">{{ t.name }}</a>
+            <span class="wl-note">{{ t.note_ja }}</span>
+          </th>
+          <td class="wl-cell wl-reccell"><b>{{ t.wins }}勝{{ t.n - t.wins }}敗</b></td>
+          {% for g in t.games %}
+          <td class="wl-cell {{ 'wl-win' if g.won else 'wl-loss' }}"
+              title="{{ g.label }} {{ 'vs' if g.is_home else '@' }}{{ g.opp }} {{ g.score }}&#10;初回 {{ g.first_scored if g.first_scored is not none else '?' }}得点／5回まで両軍計 {{ g.runs_thru5 if g.runs_thru5 is not none else '?' }}点">
+            <span class="wl-mark">{{ '◯' if g.won else '⚫︎' }}</span>
+            <span class="wl-sub">{{ '' if g.is_home else '@' }}{{ g.opp_abbr }}</span>
+            <span class="wl-sub">{{ g.label }}</span>
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="wl-legend">@ が付いているのがビジター。「乗りやすい／警戒」はこれまでの実感によるメモで、集計には使っていません。</p>
+</section>
+{% endblock %}

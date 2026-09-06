@@ -20,6 +20,7 @@ from model_v2 import ModelData, predict_v2, expected_hit_rate
 from pick_record import pick_record
 from signals import pitcher_form, pitcher_form_badge, starter_ranking
 from venue_master import venue_short
+from watchlist import build_watchlist
 
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
@@ -647,6 +648,16 @@ def build_innings_page(env, base_ctx) -> None:
            SITE / "innings.html")
 
 
+def build_watchlist_page(env, base_ctx) -> None:
+    """注目している投手・チームだけを並べたページ。"""
+    w = build_watchlist()
+    if not w:
+        return
+    render(env, "watchlist.html",
+           {**base_ctx, "active": "watchlist", "w": w},
+           SITE / "watchlist.html")
+
+
 def build_standings(env, base_ctx, leagues) -> None:
     render(env, "standings.html", {**base_ctx, "active": "standings", "leagues": leagues}, SITE / "standings.html")
 
@@ -1201,6 +1212,8 @@ def main() -> None:
     build_pitcher_ranking_page(env, base_ctx)
     print("[build] innings")
     build_innings_page(env, base_ctx)
+    print("[build] watchlist")
+    build_watchlist_page(env, base_ctx)
     print("[build] pitcher pages")
     n = build_pitcher_pages(env, base_ctx, teams)
     print(f"  → {n} pitcher pages")
