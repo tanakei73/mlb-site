@@ -92,7 +92,11 @@ class ModelData:
         self._load(before_date)
 
     def _load(self, before_date: Optional[str]) -> None:
-        where = "WHERE status='Final' AND home_score IS NOT NULL"
+        # games にはオープン戦・オールスターも入っている(130試合超)。
+        # これを混ぜるとピタゴラス勝率が最大1.9pt ずれ、相手にMLB以外の
+        # チームIDまで現れるので、公式戦だけを使う。
+        where = ("WHERE status='Final' AND home_score IS NOT NULL"
+                 " AND series_description='Regular Season'")
         params: tuple = ()
         if before_date:
             where += " AND game_date < ?"

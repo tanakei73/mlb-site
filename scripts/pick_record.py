@@ -46,6 +46,7 @@ def _load():
                LEFT JOIN teams th ON g.home_team_id=th.team_id
                WHERE g.status='Final' AND g.home_score IS NOT NULL
                  AND g.away_score IS NOT NULL
+                 AND g.series_description='Regular Season'
                ORDER BY g.game_date, g.game_pk""")]
         plog = defaultdict(list)
         for r in c.execute(

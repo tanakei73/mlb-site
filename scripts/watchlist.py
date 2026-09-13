@@ -162,6 +162,7 @@ def team_recent(team_id: int, limit: int = 12) -> Optional[dict]:
                JOIN teams th ON g.home_team_id=th.team_id
                JOIN teams ta ON g.away_team_id=ta.team_id
                WHERE g.status='Final' AND g.home_score IS NOT NULL
+                 AND g.series_description='Regular Season'
                  AND (g.home_team_id=? OR g.away_team_id=?)
                ORDER BY g.game_date DESC LIMIT ?""",
             (team_id, team_id, limit)).fetchall()

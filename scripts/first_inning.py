@@ -227,7 +227,8 @@ def first_inning_baseline() -> Optional[dict]:
         rows = conn.execute(
             """SELECT b.innings_json FROM boxscore_linescore b
                JOIN games g ON b.game_pk=g.game_pk
-               WHERE g.status='Final' AND b.innings_json IS NOT NULL""").fetchall()
+               WHERE g.status='Final' AND b.innings_json IS NOT NULL
+                 AND g.series_description='Regular Season'""").fetchall()
     tie = away = home = 0
     for r in rows:
         actual = _first_inning_actual(r["innings_json"])
