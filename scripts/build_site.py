@@ -19,6 +19,7 @@ from first_inning import (
 from model_v2 import ModelData, predict_v2, expected_hit_rate
 from pick_record import pick_record
 from signals import pitcher_form, pitcher_form_badge, starter_ranking
+from postseason import build_postseason
 from venue_master import venue_short
 from watchlist import build_watchlist
 
@@ -648,6 +649,16 @@ def build_innings_page(env, base_ctx) -> None:
            SITE / "innings.html")
 
 
+def build_postseason_page(env, base_ctx) -> None:
+    """ポストシーズンのシード表とブラケット。"""
+    ps = build_postseason()
+    if not ps:
+        return
+    render(env, "postseason.html",
+           {**base_ctx, "active": "postseason", "ps": ps},
+           SITE / "postseason.html")
+
+
 def build_watchlist_page(env, base_ctx) -> None:
     """注目している投手・チームだけを並べたページ。"""
     w = build_watchlist()
@@ -1214,6 +1225,8 @@ def main() -> None:
     build_innings_page(env, base_ctx)
     print("[build] watchlist")
     build_watchlist_page(env, base_ctx)
+    print("[build] postseason")
+    build_postseason_page(env, base_ctx)
     print("[build] pitcher pages")
     n = build_pitcher_pages(env, base_ctx, teams)
     print(f"  → {n} pitcher pages")

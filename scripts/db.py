@@ -57,6 +57,32 @@ CREATE TABLE IF NOT EXISTS games (
     save_pitcher       TEXT
 );
 
+-- ポストシーズンの試合。対戦相手が未定の枠も MLB API は
+-- 「AL Wild Card #3」のようなダミーチーム(id 2000番台以降)で返すので、
+-- チームIDと表示名の両方を持たせ、teams テーブルへのFKは付けない。
+CREATE TABLE IF NOT EXISTS postseason_games (
+    game_pk         INTEGER PRIMARY KEY,
+    season          INTEGER,
+    game_type       TEXT,      -- F=ワイルドカード D=地区 L=リーグ優勝 W=世界一
+    series_name     TEXT,
+    series_abbr     TEXT,
+    series_game_no  INTEGER,
+    series_total    INTEGER,
+    game_date       TEXT,
+    game_datetime   TEXT,
+    status          TEXT,
+    detailed_state  TEXT,
+    away_team_id    INTEGER,
+    away_name       TEXT,
+    home_team_id    INTEGER,
+    home_name       TEXT,
+    away_score      INTEGER,
+    home_score      INTEGER,
+    venue           TEXT,
+    away_pitcher    TEXT,
+    home_pitcher    TEXT
+);
+
 CREATE TABLE IF NOT EXISTS team_season_stats (
     team_id        INTEGER,
     season         INTEGER,
@@ -272,6 +298,14 @@ def init_db() -> None:
         _ensure_column(conn, "team_first_score", "first_inn_allowed", "INTEGER")
         _ensure_column(conn, "team_first_score", "first_inn_runs_scored", "INTEGER")
         _ensure_column(conn, "team_first_score", "first_inn_runs_allowed", "INTEGER")
+        # ポストシーズン進出状況（順位表APIから）
+        _ensure_column(conn, "standings", "clinched", "INTEGER")
+        _ensure_column(conn, "standings", "magic_number", "TEXT")
+        _ensure_column(conn, "standings", "wildcard_rank", "INTEGER")
+        _ensure_column(conn, "standings", "wildcard_gb", "TEXT")
+        _ensure_column(conn, "standings", "elimination_number", "TEXT")
+        # 開始時刻未定(startTimeTBD)。日程発表前は仮の時刻が入ってくるため
+        _ensure_column(conn, "postseason_games", "time_tbd", "INTEGER")
         conn.commit()
 
 

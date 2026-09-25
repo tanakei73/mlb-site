@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}ポストシーズン ／ MLB データ置き場{% endblock %}
+{% block content %}
+<section>
+  <h2>ポストシーズン <small class="header-meta">{{ season }}年</small></h2>
+
+  {% if ps.seeds %}
+  <div class="ps-seedwrap">
+    {% for key in ['AL', 'NL'] %}
+    {% set lg = ps.seeds.get(key) %}
+    {% if lg %}
+    <div class="ps-seedbox">
+      <h3 class="ps-lg">{{ lg.name }}</h3>
+      <table class="ps-seeds">
+        <tbody>
+        {% for t in lg.seeds %}
+          <tr class="{{ 'ps-bye' if t.bye }}">
+            <td class="ps-seedno">{{ t.seed }}</td>
+            <td class="ps-team">
+              <a href="{{ root }}teams/{{ t.abbreviation|lower }}.html">{{ t.name_ja }}</a>
+              {% if t.clinched %}<span class="ps-chip ps-ok">確定</span>{% endif %}
+              {% if t.bye %}<span class="ps-chip ps-bye-chip">免除</span>{% endif %}
+            </td>
+            <td class="ps-kind">{{ t.kind }}</td>
+            <td class="ps-rec">{{ t.wins }}-{{ t.losses }}</td>
+            <td class="ps-left">{% if t.left > 0 %}残{{ t.left }}{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% if lg.alive %}
+      <p class="ps-alive">まだ可能性あり:
+        {% for t in lg.alive %}<span>{{ t.name_ja }}（{{ t.wins }}-{{ t.losses }}）</span>{% if not loop.last %} / {% endif %}{% endfor %}
+      </p>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  <p class="ps-note">シードは順位表から組んだものです。地区優勝の3チームが勝率順に1〜3位、残りの上位3チームが4〜6位のワイルドカードになります。<strong>1位と2位は1回戦が免除</strong>です。</p>
+  {% endif %}
+</section>
+
+{% if ps.bracket %}
+{% for rnd in ps.bracket %}
+<section>
+  <h3 class="pick-rec-head">{{ rnd.label }} <small class="header-meta">{{ rnd.format }}</small></h3>
+  <div class="ps-grid">
+    {% for s in rnd.series %}
+    <div class="ps-series {{ 'ps-done' if s.decided }}">
+      <div class="ps-series-head">{{ s.league_ja }}</div>
+
+      <div class="ps-match">
+        <div class="ps-side {{ 'ps-winner' if s.winner == 'hi' }}">
+          <span class="ps-name">{{ s.hi.name }}</span>
+          <span class="ps-w">{{ s.hi.wins }}</span>
+        </div>
+        <div class="ps-side {{ 'ps-winner' if s.winner == 'lo' }}">
+          <span class="ps-name">{{ s.lo.name }}</span>
+          <span class="ps-w">{{ s.lo.wins }}</span>
+        </div>
+      </div>
+
+      {% if s.hi.prob is not none %}
+      <div class="ps-prob" title="レギュラーシーズンのチーム力とホームアドバンテージだけで計算したものです">
+        <div class="ps-bar"><span style="width:{{ s.hi.prob }}%"></span></div>
+        <div class="ps-prob-txt">{{ s.hi.name }} {{ s.hi.prob }}% ／ {{ s.lo.name }} {{ s.lo.prob }}%</div>
+      </div>
+      {% endif %}
+
+      <table class="ps-games">
+        <tbody>
+        {% for g in s.games %}
+          <tr class="{{ 'ps-played' if g.played }}">
+            <td class="ps-gno">第{{ g.no }}戦</td>
+            <td class="ps-gdate">
+              {%- if not g.date %}—
+              {%- elif g.tbd %}{{ g.date.strftime('%m/%d') }}<span class="ps-tbd">時刻未定</span>
+              {%- else %}{{ g.date.strftime('%m/%d %H:%M') }}{% endif -%}
+            </td>
+            <td class="ps-gat">{{ '本拠地' if g.hi_home else 'ビジター' }}</td>
+            <td class="ps-gscore">
+              {% if g.played %}
+                <strong class="{{ 'rec-up' if g.win_side == 'hi' else 'rec-down' }}">{{ g.hi_score }}-{{ g.lo_score }}</strong>
+              {% else %}
+                <span class="muted">{{ g.detailed or '未定' }}</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+<section>
+  <div class="ps-caveat">
+    <h3>予想の数字について</h3>
+    <p>シリーズの勝率は、<strong>レギュラーシーズンで検証したモデル</strong>（チーム力＋ホームアドバンテージ）を、実際の開催順にそって1試合ずつ掛け合わせたものです。先発投手は考慮していません。</p>
+    <p>ただし<strong>ポストシーズンはレギュラーシーズンと前提が違います</strong>。</p>
+    <ul>
+      <li>エースが中3〜4日で投げる</li>
+      <li>救援投手の使い方がまったく違う</li>
+      <li>消化試合が無く、全チームが本気で戦う</li>
+      <li>そもそも試合数が少なく、検証しようがない</li>
+    </ul>
+    <p>レギュラーシーズンで測った的中率（本命65%以上で実測64.0%など）は、<strong>ここではそのまま当てはまりません</strong>。参考程度に見てください。</p>
+  </div>
+</section>
+{% else %}
+<section><p class="ps-note">ポストシーズンの日程がまだ取得できていません。</p></section>
+{% endif %}
+{% endblock %}

@@ -1031,3 +1031,82 @@ table.wl-grid thead th {
   font-family: var(--font-num); font-size: 11px;
   background: var(--color-bg-alt); white-space: nowrap;
 }
+
+/* ===== ポストシーズン ===== */
+.ps-seedwrap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.ps-seedbox {
+  border: 1px solid var(--color-border); border-radius: 6px;
+  background: var(--color-bg); padding: 12px 14px;
+}
+.ps-lg { margin: 0 0 8px; font-size: 13px; color: var(--color-text-sub); }
+table.ps-seeds { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.ps-seeds td { padding: 4px 6px; border-bottom: 1px solid var(--color-border); }
+.ps-seeds tr:last-child td { border-bottom: none; }
+.ps-seeds tr.ps-bye { background: rgba(184, 118, 61, 0.07); }
+.ps-seedno {
+  width: 22px; text-align: center; font-family: var(--font-num);
+  font-weight: 700; color: var(--color-accent);
+}
+.ps-team a { color: var(--color-text); text-decoration: none; font-weight: 600; }
+.ps-team a:hover { color: var(--color-link); text-decoration: underline; }
+.ps-kind, .ps-left { color: var(--color-text-sub); font-size: 10.5px; white-space: nowrap; }
+.ps-rec { font-family: var(--font-num); text-align: right; white-space: nowrap; }
+.ps-chip {
+  display: inline-block; margin-left: 5px; padding: 1px 6px;
+  border-radius: 8px; font-size: 9.5px; font-weight: 400;
+}
+.ps-ok { background: rgba(29, 111, 91, 0.14); color: var(--color-win); }
+.ps-bye-chip { background: rgba(184, 118, 61, 0.16); color: var(--color-accent); }
+.ps-alive { margin: 8px 0 0; font-size: 11px; color: var(--color-text-sub); }
+.ps-note { font-size: 11.5px; color: var(--color-text-sub); margin: 12px 0 0; line-height: 1.7; }
+
+.ps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.ps-series {
+  border: 1px solid var(--color-border); border-radius: 6px;
+  background: var(--color-bg); padding: 10px 12px;
+}
+.ps-series.ps-done { border-color: var(--color-border-strong); }
+.ps-series-head {
+  font-size: 11px; color: var(--color-text-sub);
+  padding-bottom: 6px; border-bottom: 1px solid var(--color-border); margin-bottom: 8px;
+}
+.ps-match { margin-bottom: 8px; }
+.ps-side {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 3px 0; font-size: 13px;
+}
+.ps-side .ps-name { font-weight: 600; }
+.ps-side .ps-w { font-family: var(--font-num); font-size: 15px; font-weight: 700; }
+.ps-winner .ps-name, .ps-winner .ps-w { color: var(--color-win); }
+.ps-prob { margin: 6px 0 10px; }
+.ps-bar {
+  height: 5px; border-radius: 3px; overflow: hidden;
+  background: rgba(168, 66, 63, 0.25);
+}
+.ps-bar span { display: block; height: 100%; background: var(--color-win); }
+.ps-prob-txt { margin-top: 4px; font-size: 10.5px; color: var(--color-text-sub); }
+table.ps-games { width: 100%; border-collapse: collapse; font-size: 11px; }
+table.ps-games td { padding: 2px 4px; color: var(--color-text-sub); }
+.ps-games tr.ps-played td { color: var(--color-text); }
+.ps-gno { white-space: nowrap; }
+.ps-gdate, .ps-gscore { font-family: var(--font-num); white-space: nowrap; }
+.ps-gscore { text-align: right; }
+.ps-gat { font-size: 10px; }
+.ps-caveat {
+  border: 1px solid var(--color-border); border-left: 3px solid var(--color-accent);
+  border-radius: 4px; background: var(--color-bg); padding: 12px 16px;
+}
+.ps-caveat h3 { margin: 0 0 8px; font-size: 13px; }
+.ps-caveat p, .ps-caveat li { font-size: 12px; line-height: 1.8; color: var(--color-text-sub); }
+.ps-caveat ul { margin: 6px 0; padding-left: 20px; }
+
+@media (max-width: 700px) {
+  .ps-seedwrap { grid-template-columns: 1fr; }
+}
+
+.ps-tbd { margin-left: 5px; font-size: 9.5px; color: var(--color-text-sub); }
+.ps-seedbox { overflow-x: auto; }
+table.ps-seeds { min-width: 330px; }
+table.ps-seeds td { padding: 4px 4px; }
+.ps-kind { display: none; }
+@media (min-width: 900px) { .ps-kind { display: table-cell; } }

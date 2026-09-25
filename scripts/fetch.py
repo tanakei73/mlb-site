@@ -125,6 +125,11 @@ def fetch_standings() -> None:
                     streak,
                     last_ten,
                     rd,
+                    1 if tr.get("clinched") else 0,
+                    str(tr.get("magicNumber") or ""),
+                    int(tr.get("wildCardRank") or 0) or None,
+                    str(tr.get("wildCardGamesBack") or ""),
+                    str(tr.get("eliminationNumber") or ""),
                     now,
                 )
             )
@@ -141,8 +146,10 @@ def fetch_standings() -> None:
         conn.executemany(
             """INSERT OR REPLACE INTO standings
             (team_id, season, wins, losses, pct, games_back, division_rank,
-             league_rank, streak, last_ten, run_diff, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+             league_rank, streak, last_ten, run_diff,
+             clinched, magic_number, wildcard_rank, wildcard_gb, elimination_number,
+             updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             rows,
         )
         conn.executemany(
@@ -863,6 +870,53 @@ def fetch_watchlist_pitchers() -> None:
     print(f"[watchlist] refreshed {len(WATCH_PITCHERS)} pitchers, {saved} rows")
 
 
+def fetch_postseason() -> None:
+    """ポストシーズンの日程・結果を取得する。
+
+    schedule/postseason は対戦が決まっていない枠も
+    「AL Wild Card #3」のようなダミーチーム(id 2000番台以降)で返すので、
+    レギュラーシーズン中からブラケットの形が取れる。
+    勝ち上がりが決まると、同じ game_pk のままチームIDが実チームに変わる。
+    """
+    data = _get("schedule/postseason", season=SEASON, sportId=1,
+                hydrate="team,linescore,decisions,seriesStatus,probablePitcher")
+    rows = []
+    for date_block in data.get("dates", []):
+        for g in date_block.get("games", []):
+            away, home = g["teams"]["away"], g["teams"]["home"]
+            ss = g.get("seriesStatus") or {}
+            rows.append((
+                g["gamePk"], SEASON, g.get("gameType"),
+                ss.get("description") or g.get("seriesDescription"),
+                ss.get("abbreviation"),
+                ss.get("gameNumber") or g.get("seriesGameNumber"),
+                ss.get("totalGames") or g.get("gamesInSeries"),
+                g.get("officialDate") or date_block.get("date"),
+                g.get("gameDate"),
+                g.get("status", {}).get("abstractGameState"),
+                g.get("status", {}).get("detailedState"),
+                (away.get("team") or {}).get("id"), (away.get("team") or {}).get("name"),
+                (home.get("team") or {}).get("id"), (home.get("team") or {}).get("name"),
+                away.get("score"), home.get("score"),
+                (g.get("venue") or {}).get("name"),
+                (away.get("probablePitcher") or {}).get("fullName"),
+                (home.get("probablePitcher") or {}).get("fullName"),
+                1 if g.get("status", {}).get("startTimeTBD") else 0,
+            ))
+    if rows:
+        with connect() as conn:
+            conn.executemany(
+                """INSERT OR REPLACE INTO postseason_games
+                (game_pk, season, game_type, series_name, series_abbr,
+                 series_game_no, series_total, game_date, game_datetime,
+                 status, detailed_state, away_team_id, away_name,
+                 home_team_id, home_name, away_score, home_score, venue,
+                 away_pitcher, home_pitcher, time_tbd)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", rows)
+            conn.commit()
+    print(f"[postseason] upserted {len(rows)} games")
+
+
 def fetch_season_linescores(start: str, end: str) -> None:
     """シーズン全体のイニング別スコアを取得する(軽量版)。
 
@@ -947,6 +1001,7 @@ def main() -> None:
     fetch_japanese_player_stats()
     fetch_starting_pitchers()
     fetch_watchlist_pitchers()
+    fetch_postseason()
     fetch_trades(days_back=30)
     # 第一イニング予想の的中率トラッカー用に、シーズン全体のイニング別スコアを確保
     fetch_season_linescores(f"{SEASON}-03-15", today.isoformat())
