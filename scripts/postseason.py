@@ -92,14 +92,17 @@ def seeds() -> Optional[dict]:
     return out or None
 
 
-def _series_win_prob(pgames: list[float], need: int) -> float:
-    """1試合ごとの勝率から、シリーズを勝つ確率を出す（開催順のまま畳み込む）。"""
+def _series_win_prob(pgames: list[float], need_w: int, need_l: int) -> float:
+    """残り試合の勝率から、シリーズを勝つ確率を出す（開催順のまま畳み込む）。
+
+    need_w / need_l は「あと何勝で終わるか」。すでに進んでいるシリーズにも使える。
+    """
     memo: dict = {}
 
     def rec(i: int, w: int, l: int) -> float:
-        if w >= need:
+        if w >= need_w:
             return 1.0
-        if l >= need:
+        if l >= need_l:
             return 0.0
         if i >= len(pgames):
             return 0.0
@@ -142,7 +145,11 @@ def bracket() -> Optional[list]:
             hw = lw = 0
             games = []
             for g in gs:
-                played = g["home_score"] is not None and g["away_score"] is not None
+                # 進行中の試合は 1-1 のような途中経過が入るので、
+                # 「終了した試合」だけを勝敗に数える
+                played = (g["status"] == "Final"
+                          and g["home_score"] is not None and g["away_score"] is not None)
+                live = g["status"] == "Live"
                 win_side = None
                 if played:
                     home_won = g["home_score"] > g["away_score"]
@@ -164,15 +171,20 @@ def bracket() -> Optional[list]:
                     "hi_home": g["home_team_id"] == hi,
                     "hi_score": g["home_score"] if g["home_team_id"] == hi else g["away_score"],
                     "lo_score": g["away_score"] if g["home_team_id"] == hi else g["home_score"],
-                    "played": played, "win_side": win_side,
+                    "played": played, "live": live, "win_side": win_side,
                     "away_pitcher": g["away_pitcher"], "home_pitcher": g["home_pitcher"],
                 })
 
             need = (first["series_total"] or 7) // 2 + 1
+            decided = hw >= need or lw >= need
             prob = None
-            if hi_real and lo_real:
+            # 決着済みなら出さない。進行中なら「ここから勝つ確率」を残り試合で出す。
+            # (進行中の試合は途中経過を見ずに、これからの1試合として扱う)
+            if hi_real and lo_real and not decided:
                 pg = []
-                for g in gs:
+                for g, gd in zip(gs, games):
+                    if gd["played"]:
+                        continue
                     p = predict_v2({"home_team_id": g["home_team_id"],
                                     "away_team_id": g["away_team_id"],
                                     "home_pitcher_id": None, "away_pitcher_id": None}, data)
@@ -181,7 +193,7 @@ def bracket() -> Optional[list]:
                         break
                     pg.append((p["home"] if g["home_team_id"] == hi else p["away"]) / 100)
                 if pg:
-                    prob = round(_series_win_prob(pg, need) * 100)
+                    prob = round(_series_win_prob(pg, need - hw, need - lw) * 100)
 
             lg_key = (first["series_name"] or "")[:2]
             series.append({
@@ -196,7 +208,7 @@ def bracket() -> Optional[list]:
                        "abbr": (lo_real or {}).get("abbreviation"), "real": bool(lo_real),
                        "wins": lw, "prob": (100 - prob) if prob is not None else None},
                 "games": games,
-                "decided": hw >= need or lw >= need,
+                "decided": decided,
                 "winner": "hi" if hw >= need else ("lo" if lw >= need else None),
                 "start": games[0]["date"] if games else None,
             })

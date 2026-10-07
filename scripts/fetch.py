@@ -913,6 +913,13 @@ def fetch_postseason() -> None:
                  home_team_id, home_name, away_score, home_score, venue,
                  away_pitcher, home_pitcher, time_tbd)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", rows)
+            # スイープで消えた第3戦などは API から返らなくなる。
+            # 残しておくと「未消化の試合」として残ってしまうので消す。
+            pks = [r[0] for r in rows]
+            conn.execute(
+                f"""DELETE FROM postseason_games WHERE season=?
+                    AND game_pk NOT IN ({','.join('?' * len(pks))})""",
+                (SEASON, *pks))
             conn.commit()
     print(f"[postseason] upserted {len(rows)} games")
 
